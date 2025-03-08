@@ -39,8 +39,7 @@ const DonorDetailsPage = () => {
   const fetchDonor = async () => {
     try {
       setLoading(true);
-      
-      // In a real implementation, this would be an API call to fetch donor:
+      // In a real implementation, this would be a fetch to an actual API:
       // const response = await fetch(`/api/donors/${id}`);
       // if (!response.ok) {
       //   throw new Error('Failed to fetch donor details');
@@ -48,31 +47,31 @@ const DonorDetailsPage = () => {
       // const data = await response.json();
       // setDonor(data.data);
       
-      // Mock data for development
+      // For now, simulate with mock data
       const mockDonor = {
         _id: id,
         donorId: 'D230001',
         firstName: 'John',
         lastName: 'Doe',
         gender: 'Male',
-        dateOfBirth: new Date('1985-05-15').toISOString(),
+        dateOfBirth: new Date('1985-06-15').toISOString(),
         bloodType: 'O+',
         email: 'john.doe@example.com',
-        phone: '(555) 123-4567',
+        phone: '123-456-7890',
         address: {
           street: '123 Main St',
           city: 'Anytown',
-          state: 'California',
+          state: 'CA',
           zipCode: '90210',
           country: 'USA'
         },
         emergencyContact: {
           name: 'Jane Doe',
           relationship: 'Spouse',
-          phone: '(555) 987-6543'
+          phone: '123-456-7891'
         },
         status: 'Active',
-        registrationDate: new Date('2022-03-10').toISOString(),
+        registrationDate: new Date('2023-01-01').toISOString(),
         lastDonationDate: new Date('2023-01-15').toISOString(),
         donationCount: 5,
         communicationPreferences: {
@@ -89,7 +88,6 @@ const DonorDetailsPage = () => {
         setDonor(mockDonor);
         setLoading(false);
       }, 500);
-      
     } catch (error) {
       setError(error.message);
       toast({
@@ -166,17 +164,17 @@ const DonorDetailsPage = () => {
       ) : donor ? (
         <Tabs colorScheme="blue">
           <TabList>
-            <Tab>Donations</Tab>
             <Tab>Eligibility</Tab>
+            <Tab>Donation History</Tab>
             <Tab>Personal Info</Tab>
           </TabList>
 
           <TabPanels>
             <TabPanel>
-              <DonationHistoryView donorId={id} />
+              <EligibilityCheckView donorId={id} />
             </TabPanel>
             <TabPanel>
-              <EligibilityCheckView donorId={id} />
+              <DonationHistoryView donorId={id} />
             </TabPanel>
             <TabPanel>
               <Box p={4}>
@@ -223,7 +221,7 @@ const DonorDetailsPage = () => {
                         <Text>
                           {donor.lastDonationDate 
                             ? new Date(donor.lastDonationDate).toLocaleDateString() 
-                            : 'None'}
+                            : 'Never'}
                         </Text>
                       </Grid>
                     </Box>
@@ -238,6 +236,22 @@ const DonorDetailsPage = () => {
                         
                         <Text fontWeight="bold">Phone:</Text>
                         <Text>{donor.phone}</Text>
+                        
+                        <Text fontWeight="bold">Preferences:</Text>
+                        <Flex gap={2} wrap="wrap">
+                          {donor.communicationPreferences?.email && (
+                            <Badge colorScheme="blue">Email</Badge>
+                          )}
+                          {donor.communicationPreferences?.sms && (
+                            <Badge colorScheme="green">SMS</Badge>
+                          )}
+                          {donor.communicationPreferences?.phone && (
+                            <Badge colorScheme="orange">Phone</Badge>
+                          )}
+                          {donor.communicationPreferences?.post && (
+                            <Badge colorScheme="purple">Post</Badge>
+                          )}
+                        </Flex>
                       </Grid>
                     </Box>
                     
@@ -280,26 +294,6 @@ const DonorDetailsPage = () => {
                     </Box>
                   </GridItem>
                 </Grid>
-                
-                <Divider my={6} />
-                
-                <Box>
-                  <Heading size="sm" mb={3}>Communication Preferences</Heading>
-                  <Flex gap={4} wrap="wrap">
-                    <Badge colorScheme={donor.communicationPreferences.email ? 'green' : 'gray'}>
-                      Email: {donor.communicationPreferences.email ? 'Yes' : 'No'}
-                    </Badge>
-                    <Badge colorScheme={donor.communicationPreferences.sms ? 'green' : 'gray'}>
-                      SMS: {donor.communicationPreferences.sms ? 'Yes' : 'No'}
-                    </Badge>
-                    <Badge colorScheme={donor.communicationPreferences.phone ? 'green' : 'gray'}>
-                      Phone: {donor.communicationPreferences.phone ? 'Yes' : 'No'}
-                    </Badge>
-                    <Badge colorScheme={donor.communicationPreferences.post ? 'green' : 'gray'}>
-                      Postal Mail: {donor.communicationPreferences.post ? 'Yes' : 'No'}
-                    </Badge>
-                  </Flex>
-                </Box>
                 
                 {donor.notes && (
                   <Box mt={6}>
