@@ -122,3 +122,86 @@ const EligibilityCheckView = ({ donorId }) => {
       setIsLoading(false);
     }
   };
+
+  const getEligibilityStatus = () => {
+    if (!eligibilityData) return null;
+    
+    if (eligibilityData.eligibility.isEligible) {
+      return (
+        <Alert
+          status="success"
+          variant="subtle"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+          textAlign="center"
+          height="200px"
+          borderRadius="lg"
+        >
+          <AlertIcon boxSize="40px" mr={0} />
+          <AlertTitle mt={4} mb={1} fontSize="lg">
+            Eligible to Donate
+          </AlertTitle>
+          <AlertDescription maxWidth="sm">
+            This donor is currently eligible to donate blood. All eligibility criteria have been met.
+          </AlertDescription>
+        </Alert>
+      );
+    } else {
+      return (
+        <Alert
+          status="error"
+          variant="subtle"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+          textAlign="center"
+          height="200px"
+          borderRadius="lg"
+        >
+          <AlertIcon boxSize="40px" mr={0} />
+          <AlertTitle mt={4} mb={1} fontSize="lg">
+            Not Eligible to Donate
+          </AlertTitle>
+          <AlertDescription maxWidth="sm">
+            {eligibilityData.eligibility.reason}
+            {eligibilityData.eligibility.nextEligibleDate && (
+              <Text mt={2}>
+                Next eligible date: {new Date(eligibilityData.eligibility.nextEligibleDate).toLocaleDateString()}
+              </Text>
+            )}
+          </AlertDescription>
+        </Alert>
+      );
+    }
+  };
+
+  const calculateTimeToNextDonation = () => {
+    if (!eligibilityData || !eligibilityData.donationMetrics.daysSinceLastDonation) return null;
+    
+    const waitPeriod = 56; // 56 days (8 weeks) standard wait period
+    const daysPassed = eligibilityData.donationMetrics.daysSinceLastDonation;
+    
+    if (daysPassed >= waitPeriod) {
+      return { 
+        daysLeft: 0, 
+        percentage: 100, 
+        isComplete: true 
+      };
+    } else {
+      const daysLeft = waitPeriod - daysPassed;
+      const percentage = Math.round((daysPassed / waitPeriod) * 100);
+      
+      return { 
+        daysLeft, 
+        percentage, 
+        isComplete: false 
+      };
+    }
+  };
+
+  const timeToNextDonation = calculateTimeToNextDonation();
+
+  const handleCheckEligibility = () => {
+    onOpen();
+  };
