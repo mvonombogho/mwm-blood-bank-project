@@ -110,3 +110,104 @@ export default async function handler(req, res) {
         res.status(400).json({ success: false, error: error.message });
       }
       break;
+
+    // POST a new maintenance record
+    case 'POST':
+      try {
+        const { 
+          unitId, 
+          maintenanceType, 
+          performedBy, 
+          description, 
+          parts = [],
+          nextMaintenanceDate,
+          status = 'Completed',
+          result,
+          notes
+        } = req.body;
+        
+        // Validate required fields
+        if (!unitId || !maintenanceType || !performedBy || !description || !result) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'unitId, maintenanceType, performedBy, description, and result are required' 
+          });
+        }
+        
+        // Find the storage unit
+        let storageUnit;
+        if (mongoose.Types.ObjectId.isValid(unitId)) {
+          storageUnit = await StorageLog.findById(unitId);
+        } else {
+          storageUnit = await StorageLog.findOne({ storageUnitId: unitId });
+        }
+        
+        if (!storageUnit) {
+          return res.status(404).json({ success: false, error: 'Storage unit not found' });
+        }
+        
+        // Create maintenance record
+        const maintenanceRecord = {
+          maintenanceType,
+          performedBy,
+          performedAt: new Date(),
+          description,
+          parts,
+          nextMaintenanceDate: nextMaintenanceDate ? new Date(nextMaintenanceDate) : null,
+          status,
+          result,
+          notes
+        };
+        
+        // Add maintenance record to storage unit
+        if (!storageUnit.maintenanceHistory) {
+          storageUnit.maintenanceHistory = [];
+        }
+        
+        storageUnit.maintenanceHistory.push(maintenanceRecord);
+        
+        // Update unit status if maintenance is ongoing
+        if (status === 'In Progress') {
+          storageUnit.status = 'Maintenance';
+        } else if (status === 'Completed' && storageUnit.status === 'Maintenance') {
+          // Check if any other maintenance is in progress
+          const otherMaintenanceInProgress = storageUnit.maintenanceHistory.some(
+            record => record.status === 'In Progress'
+          );
+          
+          if (!otherMaintenanceInProgress) {
+            storageUnit.status = 'Operational';
+          }
+        }
+        
+        // Update lastUpdated timestamp
+        storageUnit.lastUpdated = new Date();
+        
+        // Save the storage unit
+        await storageUnit.save();
+        
+        // Get the newly added maintenance record
+        const newRecord = storageUnit.maintenanceHistory[storageUnit.maintenanceHistory.length - 1];
+        
+        res.status(201).json({ 
+          success: true, 
+          data: {
+            ...newRecord.toObject(),
+            storageUnit: {
+              _id: storageUnit._id,
+              storageUnitId: storageUnit.storageUnitId,
+              facilityId: storageUnit.facilityId,
+              status: storageUnit.status
+            }
+          }
+        });
+      } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
+      }
+      break;
+
+    default:
+      res.status(405).json({ success: false, error: `Method ${method} Not Allowed` });
+      break;
+  }
+}
