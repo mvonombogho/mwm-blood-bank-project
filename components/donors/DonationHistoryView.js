@@ -156,3 +156,301 @@ const DonationHistoryView = ({ donorId }) => {
     
     onFormOpen();
   };
+
+  const onSubmit = async (data) => {
+    try {
+      // In a real implementation, we would make an API call to add/update a donation
+      // For now, we'll simulate it by updating our local state
+      
+      if (isEditMode) {
+        // Update existing donation
+        const updatedDonations = donations.map(donation => 
+          donation.donationId === selectedDonation.donationId
+            ? { ...donation, ...data }
+            : donation
+        );
+        setDonations(updatedDonations);
+        
+        toast({
+          title: 'Donation Updated',
+          description: 'Donation record has been updated successfully',
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+      } else {
+        // Create new donation with a mock ID
+        const newDonation = {
+          donationId: `BU${new Date().toISOString().slice(2, 10).replace(/-/g, '')}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+          date: data.date,
+          bloodType: data.bloodType,
+          quantity: data.quantity,
+          location: data.location,
+          status: 'Processing',
+          notes: data.notes
+        };
+        
+        setDonations([newDonation, ...donations]);
+        
+        toast({
+          title: 'Donation Added',
+          description: 'New donation record has been created',
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+      
+      // Close the form modal
+      onFormClose();
+      
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    switch(status) {
+      case 'Available':
+        return <Badge colorScheme="green">{status}</Badge>;
+      case 'Processing':
+        return <Badge colorScheme="blue">{status}</Badge>;
+      case 'Transfused':
+        return <Badge colorScheme="purple">{status}</Badge>;
+      case 'Expired':
+        return <Badge colorScheme="orange">{status}</Badge>;
+      case 'Discarded':
+        return <Badge colorScheme="red">{status}</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
+    }
+  };
+
+  return (
+    <Box>
+      <Flex justifyContent="space-between" alignItems="center" mb={6}>
+        <Heading size="md">Donation History</Heading>
+        <Button 
+          leftIcon={<AddIcon />} 
+          colorScheme="blue" 
+          size="sm"
+          onClick={handleAddDonation}
+        >
+          Add Donation
+        </Button>
+      </Flex>
+      
+      {isLoading ? (
+        <Flex justifyContent="center" alignItems="center" height="100px">
+          <Spinner />
+        </Flex>
+      ) : error ? (
+        <Text color="red.500">{error}</Text>
+      ) : donations.length === 0 ? (
+        <Text color="gray.500">No donation records found for this donor.</Text>
+      ) : (
+        <Box overflowX="auto">
+          <Table variant="simple" size="sm">
+            <Thead>
+              <Tr>
+                <Th>Donation ID</Th>
+                <Th>Date</Th>
+                <Th>Blood Type</Th>
+                <Th>Quantity</Th>
+                <Th>Location</Th>
+                <Th>Status</Th>
+                <Th>Actions</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {donations.map((donation) => (
+                <Tr key={donation.donationId}>
+                  <Td>{donation.donationId}</Td>
+                  <Td>{new Date(donation.date).toLocaleDateString()}</Td>
+                  <Td>
+                    <Badge colorScheme={donation.bloodType.includes('-') ? 'purple' : 'red'}>
+                      {donation.bloodType}
+                    </Badge>
+                  </Td>
+                  <Td>{donation.quantity} mL</Td>
+                  <Td>{donation.location}</Td>
+                  <Td>{getStatusBadge(donation.status)}</Td>
+                  <Td>
+                    <Flex gap={2}>
+                      <IconButton
+                        icon={<ViewIcon />}
+                        size="xs"
+                        aria-label="View donation"
+                        onClick={() => handleViewDonation(donation)}
+                      />
+                      <IconButton
+                        icon={<EditIcon />}
+                        size="xs"
+                        aria-label="Edit donation"
+                        onClick={() => handleEditDonation(donation)}
+                        isDisabled={donation.status === 'Transfused' || donation.status === 'Expired' || donation.status === 'Discarded'}
+                      />
+                    </Flex>
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </Box>
+      )}
+      
+      {/* View Donation Modal */}
+      <Modal isOpen={isViewOpen} onClose={onViewClose} size="md">
+        <ModalOverlay />
+        <ModalContent>
+          {selectedDonation && (
+            <>
+              <ModalHeader>
+                Donation Details
+                <Text fontSize="sm" fontWeight="normal" color="gray.600">
+                  {selectedDonation.donationId}
+                </Text>
+              </ModalHeader>
+              <ModalCloseButton />
+              <ModalBody>
+                <Stack spacing={4}>
+                  <Flex>
+                    <Text fontWeight="bold" width="150px">Donation Date:</Text>
+                    <Text>{new Date(selectedDonation.date).toLocaleDateString()}</Text>
+                  </Flex>
+                  <Flex>
+                    <Text fontWeight="bold" width="150px">Blood Type:</Text>
+                    <Badge colorScheme={selectedDonation.bloodType.includes('-') ? 'purple' : 'red'}>
+                      {selectedDonation.bloodType}
+                    </Badge>
+                  </Flex>
+                  <Flex>
+                    <Text fontWeight="bold" width="150px">Quantity:</Text>
+                    <Text>{selectedDonation.quantity} mL</Text>
+                  </Flex>
+                  <Flex>
+                    <Text fontWeight="bold" width="150px">Location:</Text>
+                    <Text>{selectedDonation.location}</Text>
+                  </Flex>
+                  <Flex>
+                    <Text fontWeight="bold" width="150px">Status:</Text>
+                    {getStatusBadge(selectedDonation.status)}
+                  </Flex>
+                  {selectedDonation.notes && (
+                    <Box>
+                      <Text fontWeight="bold">Notes:</Text>
+                      <Text mt={2}>{selectedDonation.notes}</Text>
+                    </Box>
+                  )}
+                </Stack>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="ghost" onClick={onViewClose}>
+                  Close
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+      
+      {/* Add/Edit Donation Form Modal */}
+      <Modal isOpen={isFormOpen} onClose={onFormClose} size="md">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            {isEditMode ? 'Edit Donation Record' : 'Add Donation Record'}
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <Stack spacing={4}>
+                <FormControl isInvalid={errors.bloodType}>
+                  <FormLabel>Blood Type</FormLabel>
+                  <Select
+                    placeholder="Select blood type"
+                    {...register('bloodType', {
+                      required: 'Blood type is required',
+                    })}
+                  >
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </Select>
+                  <FormErrorMessage>{errors.bloodType?.message}</FormErrorMessage>
+                </FormControl>
+                
+                <FormControl isInvalid={errors.quantity}>
+                  <FormLabel>Quantity (mL)</FormLabel>
+                  <Input
+                    type="number"
+                    {...register('quantity', {
+                      required: 'Quantity is required',
+                      min: { value: 1, message: 'Quantity must be at least 1 mL' }
+                    })}
+                  />
+                  <FormErrorMessage>{errors.quantity?.message}</FormErrorMessage>
+                </FormControl>
+                
+                <FormControl isInvalid={errors.date}>
+                  <FormLabel>Donation Date</FormLabel>
+                  <Input
+                    type="date"
+                    {...register('date', {
+                      required: 'Donation date is required',
+                    })}
+                  />
+                  <FormErrorMessage>{errors.date?.message}</FormErrorMessage>
+                </FormControl>
+                
+                <FormControl isInvalid={errors.location}>
+                  <FormLabel>Location</FormLabel>
+                  <Input
+                    {...register('location', {
+                      required: 'Location is required',
+                    })}
+                  />
+                  <FormErrorMessage>{errors.location?.message}</FormErrorMessage>
+                </FormControl>
+                
+                <FormControl>
+                  <FormLabel>Notes (Optional)</FormLabel>
+                  <Textarea {...register('notes')} />
+                </FormControl>
+              </Stack>
+              
+              <Flex justifyContent="space-between" mt={6}>
+                <Button 
+                  variant="ghost" 
+                  onClick={onFormClose}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  colorScheme="blue"
+                  isLoading={isSubmitting}
+                >
+                  {isEditMode ? 'Update' : 'Submit'}
+                </Button>
+              </Flex>
+            </form>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+    </Box>
+  );
+};
+
+export default DonationHistoryView;
