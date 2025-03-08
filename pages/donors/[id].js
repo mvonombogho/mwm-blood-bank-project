@@ -39,7 +39,7 @@ const DonorDetailsPage = () => {
   const fetchDonor = async () => {
     try {
       setLoading(true);
-      // In a real implementation, this would be a fetch to an actual API:
+      // In a real implementation, this would be:
       // const response = await fetch(`/api/donors/${id}`);
       // if (!response.ok) {
       //   throw new Error('Failed to fetch donor details');
@@ -47,32 +47,32 @@ const DonorDetailsPage = () => {
       // const data = await response.json();
       // setDonor(data.data);
       
-      // For now, simulate with mock data
+      // For now, we'll simulate with mock data
       const mockDonor = {
         _id: id,
-        donorId: 'D230001',
+        donorId: 'D221001',
         firstName: 'John',
         lastName: 'Doe',
         gender: 'Male',
-        dateOfBirth: new Date('1985-06-15').toISOString(),
+        dateOfBirth: new Date('1985-05-15').toISOString(),
         bloodType: 'O+',
         email: 'john.doe@example.com',
-        phone: '123-456-7890',
+        phone: '555-123-4567',
         address: {
-          street: '123 Main St',
+          street: '123 Main Street',
           city: 'Anytown',
           state: 'CA',
-          zipCode: '90210',
+          zipCode: '90001',
           country: 'USA'
         },
         emergencyContact: {
           name: 'Jane Doe',
           relationship: 'Spouse',
-          phone: '123-456-7891'
+          phone: '555-987-6543'
         },
         status: 'Active',
-        registrationDate: new Date('2023-01-01').toISOString(),
-        lastDonationDate: new Date('2023-01-15').toISOString(),
+        registrationDate: new Date('2022-01-15').toISOString(),
+        lastDonationDate: new Date('2023-03-01').toISOString(),
         donationCount: 5,
         communicationPreferences: {
           email: true,
@@ -83,7 +83,7 @@ const DonorDetailsPage = () => {
         notes: 'Regular donor, prefers morning appointments.'
       };
       
-      // Simulate loading time
+      // Simulate API delay
       setTimeout(() => {
         setDonor(mockDonor);
         setLoading(false);
@@ -164,17 +164,27 @@ const DonorDetailsPage = () => {
       ) : donor ? (
         <Tabs colorScheme="blue">
           <TabList>
-            <Tab>Eligibility</Tab>
             <Tab>Donation History</Tab>
+            <Tab>Eligibility</Tab>
+            <Tab>Health Records</Tab>
             <Tab>Personal Info</Tab>
           </TabList>
 
           <TabPanels>
             <TabPanel>
+              <DonationHistoryView donorId={id} />
+            </TabPanel>
+            <TabPanel>
               <EligibilityCheckView donorId={id} />
             </TabPanel>
             <TabPanel>
-              <DonationHistoryView donorId={id} />
+              <Box p={4}>
+                <Heading size="md" mb={4}>Health Records</Heading>
+                <Text color="gray.500">
+                  Health records feature coming soon. This will include medical history, 
+                  health assessments, and deferral history.
+                </Text>
+              </Box>
             </TabPanel>
             <TabPanel>
               <Box p={4}>
@@ -214,7 +224,7 @@ const DonorDetailsPage = () => {
                     <Box>
                       <Heading size="sm" mb={3}>Donation Statistics</Heading>
                       <Grid templateColumns="180px 1fr" gap={2}>
-                        <Text fontWeight="bold">Total Donations:</Text>
+                        <Text fontWeight="bold">Donation Count:</Text>
                         <Text>{donor.donationCount || 0}</Text>
                         
                         <Text fontWeight="bold">Last Donation:</Text>
@@ -236,22 +246,6 @@ const DonorDetailsPage = () => {
                         
                         <Text fontWeight="bold">Phone:</Text>
                         <Text>{donor.phone}</Text>
-                        
-                        <Text fontWeight="bold">Preferences:</Text>
-                        <Flex gap={2} wrap="wrap">
-                          {donor.communicationPreferences?.email && (
-                            <Badge colorScheme="blue">Email</Badge>
-                          )}
-                          {donor.communicationPreferences?.sms && (
-                            <Badge colorScheme="green">SMS</Badge>
-                          )}
-                          {donor.communicationPreferences?.phone && (
-                            <Badge colorScheme="orange">Phone</Badge>
-                          )}
-                          {donor.communicationPreferences?.post && (
-                            <Badge colorScheme="purple">Post</Badge>
-                          )}
-                        </Flex>
                       </Grid>
                     </Box>
                     
