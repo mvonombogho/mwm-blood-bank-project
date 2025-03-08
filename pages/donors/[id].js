@@ -138,7 +138,14 @@ const DonorDetailsPage = () => {
             <TabPanel>
               <Box p={4}>
                 <Heading size="md" mb={4}>Medical History</Heading>
-                <Text>Detailed medical history will be implemented in a future update.</Text>
+                {donor.medicalHistory ? (
+                  <Box>
+                    {/* Medical history sections will go here */}
+                    <Text>Coming soon: Detailed medical history view.</Text>
+                  </Box>
+                ) : (
+                  <Text color="gray.500">No medical history recorded for this donor.</Text>
+                )}
               </Box>
             </TabPanel>
             <TabPanel>
@@ -186,8 +193,7 @@ const DonorDetailsPage = () => {
                         <Text>
                           {donor.lastDonationDate 
                             ? new Date(donor.lastDonationDate).toLocaleDateString() 
-                            : 'Never'
-                          }
+                            : 'None'}
                         </Text>
                       </Grid>
                     </Box>
