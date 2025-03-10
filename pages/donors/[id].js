@@ -39,12 +39,55 @@ const DonorDetailsPage = () => {
   const fetchDonor = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/donors/${id}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch donor details');
-      }
-      const data = await response.json();
-      setDonor(data.data);
+      // In a real implementation, this would be an API call:
+      // const response = await fetch(`/api/donors/${id}`);
+      // if (!response.ok) {
+      //   throw new Error('Failed to fetch donor details');
+      // }
+      // const data = await response.json();
+      // setDonor(data.data);
+      
+      // Mock data for now
+      const mockDonor = {
+        _id: '123456',
+        donorId: 'D230001',
+        firstName: 'John',
+        lastName: 'Doe',
+        gender: 'Male',
+        dateOfBirth: new Date('1985-05-15').toISOString(),
+        bloodType: 'O+',
+        email: 'john.doe@example.com',
+        phone: '123-456-7890',
+        address: {
+          street: '123 Main St',
+          city: 'Anytown',
+          state: 'State',
+          zipCode: '12345',
+          country: 'Country'
+        },
+        emergencyContact: {
+          name: 'Jane Doe',
+          relationship: 'Spouse',
+          phone: '987-654-3210'
+        },
+        status: 'Active',
+        registrationDate: new Date('2022-03-10').toISOString(),
+        lastDonationDate: new Date('2023-01-15').toISOString(),
+        donationCount: 5,
+        communicationPreferences: {
+          email: true,
+          sms: true,
+          phone: true,
+          post: false
+        },
+        notes: 'Regular donor, prefers morning appointments.'
+      };
+      
+      // Simulate API delay
+      setTimeout(() => {
+        setDonor(mockDonor);
+        setLoading(false);
+      }, 500);
     } catch (error) {
       setError(error.message);
       toast({
@@ -54,7 +97,6 @@ const DonorDetailsPage = () => {
         duration: 5000,
         isClosable: true,
       });
-    } finally {
       setLoading(false);
     }
   };
@@ -96,7 +138,7 @@ const DonorDetailsPage = () => {
               </Heading>
               <Flex mt={1} alignItems="center" gap={2}>
                 <Text color="gray.600">{donor.donorId}</Text>
-                <Badge colorScheme={donor.bloodType?.includes('-') ? 'purple' : 'red'}>
+                <Badge colorScheme={donor.bloodType.includes('-') ? 'purple' : 'red'}>
                   {donor.bloodType}
                 </Badge>
                 {getStatusBadge(donor.status)}
@@ -138,13 +180,7 @@ const DonorDetailsPage = () => {
             <TabPanel>
               <Box p={4}>
                 <Heading size="md" mb={4}>Medical History</Heading>
-                {donor.medicalHistory ? (
-                  <Box>
-                    <Text>Coming soon: Detailed medical history view.</Text>
-                  </Box>
-                ) : (
-                  <Text color="gray.500">No medical history recorded for this donor.</Text>
-                )}
+                <Text color="gray.500">Medical history information will be implemented in a future update.</Text>
               </Box>
             </TabPanel>
             <TabPanel>
@@ -168,7 +204,7 @@ const DonorDetailsPage = () => {
                         <Text>{new Date(donor.dateOfBirth).toLocaleDateString()}</Text>
                         
                         <Text fontWeight="bold">Blood Type:</Text>
-                        <Badge colorScheme={donor.bloodType?.includes('-') ? 'purple' : 'red'}>
+                        <Badge colorScheme={donor.bloodType.includes('-') ? 'purple' : 'red'}>
                           {donor.bloodType}
                         </Badge>
                         
@@ -192,7 +228,7 @@ const DonorDetailsPage = () => {
                         <Text>
                           {donor.lastDonationDate 
                             ? new Date(donor.lastDonationDate).toLocaleDateString() 
-                            : 'None'}
+                            : 'Never'}
                         </Text>
                       </Grid>
                     </Box>
@@ -208,12 +244,12 @@ const DonorDetailsPage = () => {
                         <Text fontWeight="bold">Phone:</Text>
                         <Text>{donor.phone}</Text>
                         
-                        <Text fontWeight="bold">Contact Preferences:</Text>
+                        <Text fontWeight="bold">Preferences:</Text>
                         <Flex gap={2} wrap="wrap">
-                          {donor.communicationPreferences?.email && <Badge colorScheme="blue">Email</Badge>}
+                          {donor.communicationPreferences?.email && <Badge colorScheme="green">Email</Badge>}
                           {donor.communicationPreferences?.sms && <Badge colorScheme="green">SMS</Badge>}
-                          {donor.communicationPreferences?.phone && <Badge colorScheme="orange">Phone</Badge>}
-                          {donor.communicationPreferences?.post && <Badge colorScheme="purple">Post</Badge>}
+                          {donor.communicationPreferences?.phone && <Badge colorScheme="green">Phone</Badge>}
+                          {donor.communicationPreferences?.post && <Badge colorScheme="green">Mail</Badge>}
                         </Flex>
                       </Grid>
                     </Box>
@@ -224,19 +260,19 @@ const DonorDetailsPage = () => {
                       <Heading size="sm" mb={3}>Address</Heading>
                       <Grid templateColumns="120px 1fr" gap={2}>
                         <Text fontWeight="bold">Street:</Text>
-                        <Text>{donor.address?.street}</Text>
+                        <Text>{donor.address.street}</Text>
                         
                         <Text fontWeight="bold">City:</Text>
-                        <Text>{donor.address?.city}</Text>
+                        <Text>{donor.address.city}</Text>
                         
                         <Text fontWeight="bold">State:</Text>
-                        <Text>{donor.address?.state}</Text>
+                        <Text>{donor.address.state}</Text>
                         
                         <Text fontWeight="bold">Zip Code:</Text>
-                        <Text>{donor.address?.zipCode}</Text>
+                        <Text>{donor.address.zipCode}</Text>
                         
                         <Text fontWeight="bold">Country:</Text>
-                        <Text>{donor.address?.country}</Text>
+                        <Text>{donor.address.country}</Text>
                       </Grid>
                     </Box>
                     
@@ -246,13 +282,13 @@ const DonorDetailsPage = () => {
                       <Heading size="sm" mb={3}>Emergency Contact</Heading>
                       <Grid templateColumns="120px 1fr" gap={2}>
                         <Text fontWeight="bold">Name:</Text>
-                        <Text>{donor.emergencyContact?.name}</Text>
+                        <Text>{donor.emergencyContact.name}</Text>
                         
                         <Text fontWeight="bold">Relationship:</Text>
-                        <Text>{donor.emergencyContact?.relationship}</Text>
+                        <Text>{donor.emergencyContact.relationship}</Text>
                         
                         <Text fontWeight="bold">Phone:</Text>
-                        <Text>{donor.emergencyContact?.phone}</Text>
+                        <Text>{donor.emergencyContact.phone}</Text>
                       </Grid>
                     </Box>
                   </GridItem>
