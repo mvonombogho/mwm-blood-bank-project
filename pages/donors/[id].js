@@ -124,7 +124,7 @@ const DonorDetailsPage = () => {
           <TabList>
             <Tab>Eligibility</Tab>
             <Tab>Donation History</Tab>
-            <Tab>Health Record</Tab>
+            <Tab>Medical History</Tab>
             <Tab>Personal Info</Tab>
           </TabList>
 
@@ -137,8 +137,14 @@ const DonorDetailsPage = () => {
             </TabPanel>
             <TabPanel>
               <Box p={4}>
-                <Heading size="md" mb={4}>Health Record</Heading>
-                <Text color="gray.500">Health records will be implemented in a future update.</Text>
+                <Heading size="md" mb={4}>Medical History</Heading>
+                {donor.medicalHistory ? (
+                  <Box>
+                    <Text>Coming soon: Detailed medical history view.</Text>
+                  </Box>
+                ) : (
+                  <Text color="gray.500">No medical history recorded for this donor.</Text>
+                )}
               </Box>
             </TabPanel>
             <TabPanel>
@@ -186,7 +192,7 @@ const DonorDetailsPage = () => {
                         <Text>
                           {donor.lastDonationDate 
                             ? new Date(donor.lastDonationDate).toLocaleDateString() 
-                            : 'Never'}
+                            : 'None'}
                         </Text>
                       </Grid>
                     </Box>
@@ -201,6 +207,14 @@ const DonorDetailsPage = () => {
                         
                         <Text fontWeight="bold">Phone:</Text>
                         <Text>{donor.phone}</Text>
+                        
+                        <Text fontWeight="bold">Contact Preferences:</Text>
+                        <Flex gap={2} wrap="wrap">
+                          {donor.communicationPreferences?.email && <Badge colorScheme="blue">Email</Badge>}
+                          {donor.communicationPreferences?.sms && <Badge colorScheme="green">SMS</Badge>}
+                          {donor.communicationPreferences?.phone && <Badge colorScheme="orange">Phone</Badge>}
+                          {donor.communicationPreferences?.post && <Badge colorScheme="purple">Post</Badge>}
+                        </Flex>
                       </Grid>
                     </Box>
                     
