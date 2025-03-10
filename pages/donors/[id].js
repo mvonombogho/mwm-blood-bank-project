@@ -39,7 +39,50 @@ const DonorDetailsPage = () => {
   const fetchDonor = async () => {
     try {
       setLoading(true);
-      // For now, we'll simulate fetching from an API
+      // In a real implementation, this would be an API call to fetch donor details
+      // For now, simulate with mock data
+      
+      const mockDonor = {
+        _id: id,
+        donorId: 'D230001',
+        firstName: 'John',
+        lastName: 'Doe',
+        gender: 'Male',
+        dateOfBirth: new Date('1985-06-15').toISOString(),
+        bloodType: 'O+',
+        email: 'john.doe@example.com',
+        phone: '555-123-4567',
+        address: {
+          street: '123 Main St',
+          city: 'Anytown',
+          state: 'ST',
+          zipCode: '12345',
+          country: 'USA'
+        },
+        emergencyContact: {
+          name: 'Jane Doe',
+          relationship: 'Spouse',
+          phone: '555-987-6543'
+        },
+        status: 'Active',
+        registrationDate: new Date('2022-01-10').toISOString(),
+        lastDonationDate: new Date('2023-01-15').toISOString(),
+        donationCount: 5,
+        communicationPreferences: {
+          email: true,
+          sms: true,
+          phone: true,
+          post: false
+        },
+        notes: 'Regular donor with no adverse reactions to donations.'
+      };
+      
+      // Simulate loading time
+      setTimeout(() => {
+        setDonor(mockDonor);
+        setLoading(false);
+      }, 500);
+      
       // In a real implementation, this would be:
       // const response = await fetch(`/api/donors/${id}`);
       // if (!response.ok) {
@@ -47,48 +90,7 @@ const DonorDetailsPage = () => {
       // }
       // const data = await response.json();
       // setDonor(data.data);
-      
-      // Simulate an API call with mock data
-      setTimeout(() => {
-        const mockDonor = {
-          _id: id,
-          donorId: 'D230001',
-          firstName: 'John',
-          lastName: 'Doe',
-          gender: 'Male',
-          dateOfBirth: new Date('1985-06-15').toISOString(),
-          bloodType: 'O+',
-          email: 'john.doe@example.com',
-          phone: '(555) 123-4567',
-          address: {
-            street: '123 Main St',
-            city: 'Anytown',
-            state: 'State',
-            zipCode: '12345',
-            country: 'Country'
-          },
-          emergencyContact: {
-            name: 'Jane Doe',
-            relationship: 'Spouse',
-            phone: '(555) 987-6543'
-          },
-          status: 'Active',
-          registrationDate: new Date('2022-01-10').toISOString(),
-          lastDonationDate: new Date('2023-01-15').toISOString(),
-          donationCount: 5,
-          communicationPreferences: {
-            email: true,
-            sms: true,
-            phone: true,
-            post: false
-          },
-          notes: 'Regular donor, prefers morning appointments.'
-        };
-        
-        setDonor(mockDonor);
-        setLoading(false);
-      }, 600);
-      
+      // setLoading(false);
     } catch (error) {
       setError(error.message);
       toast({
@@ -117,6 +119,19 @@ const DonorDetailsPage = () => {
       default:
         return <Badge>{status}</Badge>;
     }
+  };
+
+  const calculateAge = (dateOfBirth) => {
+    const birthDate = new Date(dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
   };
 
   return (
@@ -195,7 +210,7 @@ const DonorDetailsPage = () => {
                         <Text>{donor.gender}</Text>
                         
                         <Text fontWeight="bold">Date of Birth:</Text>
-                        <Text>{new Date(donor.dateOfBirth).toLocaleDateString()}</Text>
+                        <Text>{new Date(donor.dateOfBirth).toLocaleDateString()} ({calculateAge(donor.dateOfBirth)} years)</Text>
                         
                         <Text fontWeight="bold">Blood Type:</Text>
                         <Badge colorScheme={donor.bloodType.includes('-') ? 'purple' : 'red'}>
@@ -213,7 +228,7 @@ const DonorDetailsPage = () => {
                     <Divider mb={6} />
                     
                     <Box>
-                      <Heading size="sm" mb={3}>Donation History</Heading>
+                      <Heading size="sm" mb={3}>Donation Statistics</Heading>
                       <Grid templateColumns="180px 1fr" gap={2}>
                         <Text fontWeight="bold">Total Donations:</Text>
                         <Text>{donor.donationCount || 0}</Text>
@@ -222,7 +237,8 @@ const DonorDetailsPage = () => {
                         <Text>
                           {donor.lastDonationDate 
                             ? new Date(donor.lastDonationDate).toLocaleDateString() 
-                            : 'Never'}
+                            : 'Never'
+                          }
                         </Text>
                       </Grid>
                     </Box>
@@ -237,25 +253,6 @@ const DonorDetailsPage = () => {
                         
                         <Text fontWeight="bold">Phone:</Text>
                         <Text>{donor.phone}</Text>
-                      </Grid>
-                    </Box>
-                    
-                    <Divider mb={6} />
-                    
-                    <Box mb={6}>
-                      <Heading size="sm" mb={3}>Communication Preferences</Heading>
-                      <Grid templateColumns="120px 1fr" gap={2}>
-                        <Text fontWeight="bold">Email:</Text>
-                        <Text>{donor.communicationPreferences?.email ? 'Yes' : 'No'}</Text>
-                        
-                        <Text fontWeight="bold">SMS:</Text>
-                        <Text>{donor.communicationPreferences?.sms ? 'Yes' : 'No'}</Text>
-                        
-                        <Text fontWeight="bold">Phone:</Text>
-                        <Text>{donor.communicationPreferences?.phone ? 'Yes' : 'No'}</Text>
-                        
-                        <Text fontWeight="bold">Post:</Text>
-                        <Text>{donor.communicationPreferences?.post ? 'Yes' : 'No'}</Text>
                       </Grid>
                     </Box>
                     
