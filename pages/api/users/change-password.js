@@ -1,46 +1,50 @@
-import dbConnect from '../../../lib/dbConnect';
+import dbConnect from '../../../lib/mongodb';
 import User from '../../../models/User';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
-import { formatResponse, handleApiError } from '../../../lib/apiUtils';
+import withAuth from '../../../lib/middlewares/withAuth';
 
-export default async function handler(req, res) {
-  const { method } = req;
-  
-  if (method !== 'POST') {
-    return res.status(405).json(formatResponse(false, null, `Method ${method} Not Allowed`));
+async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: 'Method not allowed' });
   }
-  
-  // Check for authentication
-  const session = await getServerSession(req, res, authOptions);
-  if (!session) {
-    return res.status(401).json(formatResponse(false, null, 'Unauthorized'));
+
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.user.id;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Current password and new password are required' });
   }
-  
-  await dbConnect();
-  
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+  }
+
   try {
-    const { currentPassword, newPassword } = req.body;
-    
-    // Find user by id
-    const user = await User.findById(session.user.id).select('+password');
-    
+    await dbConnect();
+
+    // Find the user and include the password field (which is normally excluded)
+    const user = await User.findById(userId).select('+password');
+
     if (!user) {
-      return res.status(404).json(formatResponse(false, null, 'User not found'));
+      return res.status(404).json({ message: 'User not found' });
     }
-    
+
     // Check if current password matches
     const isMatch = await user.matchPassword(currentPassword);
+
     if (!isMatch) {
-      return res.status(400).json(formatResponse(false, null, 'Current password is incorrect'));
+      return res.status(400).json({ message: 'Current password is incorrect' });
     }
-    
-    // Update password
+
+    // Update to new password
     user.password = newPassword;
     await user.save();
-    
-    return res.status(200).json(formatResponse(true, { message: 'Password updated successfully' }));
+
+    return res.status(200).json({ message: 'Password changed successfully' });
   } catch (error) {
-    return handleApiError(error, res);
+    console.error('Change password error:', error);
+    return res.status(500).json({ message: 'Error changing password' });
   }
 }
+
+// Protect this route - any authenticated user can change their own password
+export default withAuth(handler);
