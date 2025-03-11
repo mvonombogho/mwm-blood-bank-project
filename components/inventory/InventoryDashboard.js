@@ -1,331 +1,401 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
+  Grid,
+  GridItem,
   Heading,
-  Text,
-  SimpleGrid,
   Stat,
   StatLabel,
   StatNumber,
   StatHelpText,
   StatArrow,
-  StatGroup,
+  SimpleGrid,
   Flex,
   Badge,
+  Text,
+  Card,
+  CardBody,
+  CardHeader,
+  Stack,
   Progress,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  TableContainer,
-  useColorModeValue,
-  Spinner,
+  Divider,
   Alert,
   AlertIcon,
-  AlertTitle,
-  Icon,
-  VStack,
+  Skeleton,
+  SkeletonText,
   Button,
+  Icon,
+  useColorModeValue,
 } from '@chakra-ui/react';
-import { 
-  FaVial, 
-  FaThermometerHalf, 
-  FaExclamationTriangle,
-  FaCalendarTimes 
-} from 'react-icons/fa';
+import { FiDroplet, FiAlertTriangle, FiClock, FiThermometer, FiCheckCircle, FiBarChart2 } from 'react-icons/fi';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
+import { Pie, Bar } from 'react-chartjs-2';
 import axios from 'axios';
-import { format, differenceInDays } from 'date-fns';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Pie } from 'react-chartjs-2';
+import NextLink from 'next/link';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
-
-const BloodTypeColors = {
-  'A+': 'red.500',
-  'A-': 'red.300',
-  'B+': 'blue.500',
-  'B-': 'blue.300',
-  'AB+': 'purple.500',
-  'AB-': 'purple.300',
-  'O+': 'green.500',
-  'O-': 'green.300',
-};
+// Register ChartJS components
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
 const InventoryDashboard = () => {
-  const [bloodUnits, setBloodUnits] = useState([]);
+  const [inventoryStats, setInventoryStats] = useState(null);
+  const [expiryData, setExpiryData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState({
-    total: 0,
-    available: 0,
-    expiring: 0,
-    byType: {},
-    byStatus: {},
-  });
-
-  // Colors for the charts
+  
   const cardBg = useColorModeValue('white', 'gray.700');
-  const textColor = useColorModeValue('gray.700', 'gray.200');
 
   useEffect(() => {
-    const fetchBloodUnits = async () => {
+    const fetchInventoryData = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('/api/inventory/blood-units');
-        const data = response.data;
-        setBloodUnits(data);
         
-        // Calculate statistics
-        const total = data.length;
-        const available = data.filter(unit => unit.status === 'Available').length;
-        const today = new Date();
-        const expiring = data.filter(unit => {
-          const expiryDate = new Date(unit.expirationDate);
-          return differenceInDays(expiryDate, today) <= 7 && 
-                 differenceInDays(expiryDate, today) >= 0 &&
-                 unit.status === 'Available';
-        }).length;
-
-        // Group by blood type
-        const byType = data.reduce((acc, unit) => {
-          if (unit.status === 'Available') {
-            acc[unit.bloodType] = (acc[unit.bloodType] || 0) + 1;
-          }
-          return acc;
-        }, {});
-
-        // Group by status
-        const byStatus = data.reduce((acc, unit) => {
-          acc[unit.status] = (acc[unit.status] || 0) + 1;
-          return acc;
-        }, {});
-
-        setStats({
-          total,
-          available,
-          expiring,
-          byType,
-          byStatus,
-        });
-
-        setLoading(false);
+        // Fetch data in parallel
+        const [inventoryResponse, expiryResponse] = await Promise.all([
+          axios.get('/api/inventory/blood-units/stats'),
+          axios.get('/api/inventory/expiry-tracking?critical=true&limit=5')
+        ]);
+        
+        setInventoryStats(inventoryResponse.data);
+        setExpiryData(expiryResponse.data);
       } catch (err) {
-        console.error("Failed to fetch blood units:", err);
-        setError("Failed to load inventory data");
+        console.error('Error fetching inventory data:', err);
+        setError('Failed to load inventory data. Please try again later.');
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchBloodUnits();
+    fetchInventoryData();
   }, []);
 
-  // Blood type chart data
-  const bloodTypeData = {
-    labels: Object.keys(stats.byType),
+  // Prepare chart data for blood type distribution
+  const bloodTypeChartData = inventoryStats ? {
+    labels: Object.keys(inventoryStats.byBloodType || {}),
     datasets: [
       {
-        data: Object.values(stats.byType),
-        backgroundColor: Object.keys(stats.byType).map(type => BloodTypeColors[type] || 'gray.500'),
-        borderWidth: 1,
-      },
-    ],
-  };
-
-  // Status chart data
-  const statusData = {
-    labels: Object.keys(stats.byStatus),
-    datasets: [
-      {
-        data: Object.values(stats.byStatus),
+        data: Object.values(inventoryStats.byBloodType || {}),
         backgroundColor: [
-          'green.400',
-          'yellow.400',
-          'red.400',
-          'gray.400',
-          'blue.400',
-          'orange.400',
+          '#FF6384', // A+
+          '#FF9F40', // A-
+          '#FFCD56', // B+
+          '#4BC0C0', // B-
+          '#36A2EB', // AB+
+          '#9966FF', // AB-
+          '#C9CBCF', // O+
+          '#7C8798', // O-
         ],
         borderWidth: 1,
       },
     ],
+  } : null;
+
+  // Prepare chart data for age distribution
+  const ageDistributionData = inventoryStats ? {
+    labels: Object.keys(inventoryStats.byAge || {}),
+    datasets: [
+      {
+        label: 'Units by Age',
+        data: Object.values(inventoryStats.byAge || {}),
+        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 1,
+      },
+    ],
+  } : null;
+
+  // Options for age distribution chart
+  const ageChartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      title: {
+        display: true,
+        text: 'Blood Units by Age',
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: 'Number of Units',
+        },
+      },
+    },
   };
 
-  // Calculate inventory health - a simple metric based on available units and expiring soon
-  const inventoryHealth = stats.available > 0 
-    ? Math.max(0, 100 - ((stats.expiring / stats.available) * 100))
-    : 0;
-
-  // Helper function to get color based on days until expiry
-  const getExpiryColor = (expiryDate) => {
-    const today = new Date();
-    const days = differenceInDays(new Date(expiryDate), today);
+  // Calculate inventory status percentages
+  const calculateStatusPercentages = () => {
+    if (!inventoryStats) return [];
     
-    if (days <= 3) return 'red.500';
-    if (days <= 7) return 'orange.500';
-    if (days <= 14) return 'yellow.500';
-    return 'green.500';
+    const totalUnits = inventoryStats.totalUnits || 1; // Avoid division by zero
+    
+    return [
+      {
+        status: 'Available',
+        count: inventoryStats.availableUnits || 0,
+        percentage: ((inventoryStats.availableUnits || 0) / totalUnits) * 100,
+        color: 'green',
+      },
+      {
+        status: 'Reserved',
+        count: inventoryStats.reservedUnits || 0,
+        percentage: ((inventoryStats.reservedUnits || 0) / totalUnits) * 100,
+        color: 'blue',
+      },
+      {
+        status: 'Quarantined',
+        count: inventoryStats.quarantinedUnits || 0,
+        percentage: ((inventoryStats.quarantinedUnits || 0) / totalUnits) * 100,
+        color: 'yellow',
+      },
+      {
+        status: 'Expired',
+        count: inventoryStats.expiredUnits || 0,
+        percentage: ((inventoryStats.expiredUnits || 0) / totalUnits) * 100,
+        color: 'red',
+      },
+    ];
   };
 
-  if (loading) {
-    return (
-      <Flex justify="center" align="center" height="500px">
-        <Spinner size="xl" />
-      </Flex>
-    );
-  }
+  // Render a stat card
+  const renderStat = (title, value, icon, color, helpText) => (
+    <Card bg={cardBg} boxShadow="sm" height="full">
+      <CardBody>
+        <Flex justify="space-between">
+          <Box>
+            <Text fontWeight="medium" color="gray.500">{title}</Text>
+            <Skeleton isLoaded={!loading} mt={2}>
+              <Text fontSize="2xl" fontWeight="bold">{value}</Text>
+            </Skeleton>
+            {helpText && (
+              <Skeleton isLoaded={!loading}>
+                <Text fontSize="sm" color="gray.500" mt={1}>{helpText}</Text>
+              </Skeleton>
+            )}
+          </Box>
+          <Flex
+            justifyContent="center"
+            alignItems="center"
+            borderRadius="full"
+            bg={`${color}.100`}
+            color={`${color}.500`}
+            h={12}
+            w={12}
+          >
+            <Icon as={icon} boxSize={6} />
+          </Flex>
+        </Flex>
+      </CardBody>
+    </Card>
+  );
 
   if (error) {
     return (
       <Alert status="error">
         <AlertIcon />
-        <AlertTitle>{error}</AlertTitle>
+        {error}
       </Alert>
     );
   }
 
-  // Get the 5 units expiring soonest
-  const expiringUnits = [...bloodUnits]
-    .filter(unit => unit.status === 'Available')
-    .sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate))
-    .slice(0, 5);
-
   return (
-    <Box p={5}>
-      <Heading mb={6}>Blood Inventory Dashboard</Heading>
-      
-      {/* Summary Stats */}
-      <SimpleGrid columns={{ base: 1, md: 4 }} spacing={6} mb={8}>
-        <Stat bg={cardBg} p={5} borderRadius="lg" boxShadow="md">
-          <StatLabel>Total Units</StatLabel>
-          <Flex align="center">
-            <Icon as={FaVial} color="blue.500" mr={2} />
-            <StatNumber>{stats.total}</StatNumber>
-          </Flex>
-          <StatHelpText>All blood units in system</StatHelpText>
-        </Stat>
-        
-        <Stat bg={cardBg} p={5} borderRadius="lg" boxShadow="md">
-          <StatLabel>Available Units</StatLabel>
-          <Flex align="center">
-            <Icon as={FaVial} color="green.500" mr={2} />
-            <StatNumber>{stats.available}</StatNumber>
-          </Flex>
-          <StatHelpText>
-            <StatArrow type={stats.available > stats.total * 0.3 ? 'increase' : 'decrease'} />
-            {((stats.available / stats.total) * 100).toFixed(1)}% of total
-          </StatHelpText>
-        </Stat>
-        
-        <Stat bg={cardBg} p={5} borderRadius="lg" boxShadow="md">
-          <StatLabel>Expiring Soon</StatLabel>
-          <Flex align="center">
-            <Icon as={FaCalendarTimes} color="red.500" mr={2} />
-            <StatNumber>{stats.expiring}</StatNumber>
-          </Flex>
-          <StatHelpText>Units expiring within 7 days</StatHelpText>
-        </Stat>
-        
-        <Stat bg={cardBg} p={5} borderRadius="lg" boxShadow="md">
-          <StatLabel>Inventory Health</StatLabel>
-          <StatNumber>{inventoryHealth.toFixed(1)}%</StatNumber>
-          <Progress
-            value={inventoryHealth}
-            colorScheme={
-              inventoryHealth > 80 ? 'green' : 
-              inventoryHealth > 50 ? 'yellow' : 
-              'red'
-            }
-            size="sm"
-            mt={2}
-          />
-        </Stat>
-      </SimpleGrid>
-      
-      {/* Charts */}
-      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} mb={8}>
-        <Box bg={cardBg} p={5} borderRadius="lg" boxShadow="md">
-          <Heading size="md" mb={4}>Blood Type Distribution</Heading>
-          <Box height="250px">
-            <Pie data={bloodTypeData} options={{ maintainAspectRatio: false }} />
-          </Box>
-        </Box>
-        
-        <Box bg={cardBg} p={5} borderRadius="lg" boxShadow="md">
-          <Heading size="md" mb={4}>Status Distribution</Heading>
-          <Box height="250px">
-            <Pie data={statusData} options={{ maintainAspectRatio: false }} />
-          </Box>
-        </Box>
-      </SimpleGrid>
-      
-      {/* Expiring Soon Table */}
-      <Box bg={cardBg} p={5} borderRadius="lg" boxShadow="md" mb={8}>
-        <Heading size="md" mb={4}>
-          <Flex align="center">
-            <Icon as={FaExclamationTriangle} color="orange.500" mr={2} />
-            Units Expiring Soon
-          </Flex>
-        </Heading>
-        
-        {expiringUnits.length > 0 ? (
-          <TableContainer>
-            <Table variant="simple" size="sm">
-              <Thead>
-                <Tr>
-                  <Th>Unit ID</Th>
-                  <Th>Blood Type</Th>
-                  <Th>Expiry Date</Th>
-                  <Th>Days Left</Th>
-                  <Th>Location</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {expiringUnits.map((unit) => {
-                  const daysLeft = differenceInDays(
-                    new Date(unit.expirationDate),
-                    new Date()
-                  );
-                  return (
-                    <Tr key={unit._id}>
-                      <Td>{unit.unitId}</Td>
-                      <Td>
-                        <Badge colorScheme={
-                          unit.bloodType.includes('A') ? 'red' :
-                          unit.bloodType.includes('B') ? 'blue' :
-                          unit.bloodType.includes('AB') ? 'purple' : 'green'
-                        }>
-                          {unit.bloodType}
-                        </Badge>
-                      </Td>
-                      <Td>{format(new Date(unit.expirationDate), 'dd MMM yyyy')}</Td>
-                      <Td>
-                        <Badge colorScheme={
-                          daysLeft <= 3 ? 'red' :
-                          daysLeft <= 7 ? 'orange' : 'green'
-                        }>
-                          {daysLeft} days
-                        </Badge>
-                      </Td>
-                      <Td>{`${unit.location.facility} - ${unit.location.storageUnit}`}</Td>
-                    </Tr>
-                  );
-                })}
-              </Tbody>
-            </Table>
-          </TableContainer>
-        ) : (
-          <Alert status="info">
-            <AlertIcon />
-            No units expiring soon
-          </Alert>
+    <Box>
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
+        {renderStat(
+          'Total Blood Units',
+          loading ? '...' : inventoryStats?.totalUnits || 0,
+          FiDroplet,
+          'red',
+          'All blood units in system'
         )}
         
-        <Button colorScheme="blue" size="sm" mt={4}>
-          View All Inventory
-        </Button>
-      </Box>
+        {renderStat(
+          'Available Units',
+          loading ? '...' : inventoryStats?.availableUnits || 0,
+          FiCheckCircle,
+          'green',
+          'Ready for use'
+        )}
+        
+        {renderStat(
+          'Expiring Soon',
+          loading ? '...' : inventoryStats?.expiringIn7Days || 0,
+          FiAlertTriangle,
+          'orange',
+          'Within next 7 days'
+        )}
+        
+        {renderStat(
+          'Quarantined',
+          loading ? '...' : inventoryStats?.quarantinedUnits || 0,
+          FiClock,
+          'yellow',
+          'Pending testing/clearance'
+        )}
+      </SimpleGrid>
+
+      <Grid templateColumns={{ base: '1fr', lg: '2fr 1fr' }} gap={6}>
+        <GridItem>
+          <Card bg={cardBg} boxShadow="sm">
+            <CardHeader pb={1}>
+              <Heading size="md">Blood Type Distribution</Heading>
+            </CardHeader>
+            <Divider />
+            <CardBody>
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                <Box>
+                  <Skeleton isLoaded={!loading} height="250px" borderRadius="md">
+                    {bloodTypeChartData && (
+                      <Box height="250px" position="relative">
+                        <Pie data={bloodTypeChartData} options={{ maintainAspectRatio: false }} />
+                      </Box>
+                    )}
+                  </Skeleton>
+                </Box>
+                
+                <Box>
+                  <Text mb={4} fontWeight="medium">Blood Type Inventory</Text>
+                  <Skeleton isLoaded={!loading}>
+                    <Stack spacing={3}>
+                      {inventoryStats && Object.entries(inventoryStats.byBloodType || {}).map(([type, count]) => (
+                        <Flex key={type} justify="space-between" align="center">
+                          <Badge colorScheme="red" px={2} py={1}>
+                            {type}
+                          </Badge>
+                          <Text fontWeight="bold">{count} units</Text>
+                        </Flex>
+                      ))}
+                    </Stack>
+                  </Skeleton>
+                </Box>
+              </SimpleGrid>
+            </CardBody>
+          </Card>
+        </GridItem>
+        
+        <GridItem>
+          <Card bg={cardBg} boxShadow="sm">
+            <CardHeader pb={1}>
+              <Heading size="md">Inventory Status</Heading>
+            </CardHeader>
+            <Divider />
+            <CardBody>
+              <Skeleton isLoaded={!loading}>
+                <Stack spacing={4}>
+                  {calculateStatusPercentages().map((statusItem) => (
+                    <Box key={statusItem.status}>
+                      <Flex justify="space-between" mb={1}>
+                        <Text fontSize="sm">{statusItem.status}</Text>
+                        <Text fontSize="sm" fontWeight="bold">
+                          {statusItem.count} ({statusItem.percentage.toFixed(1)}%)
+                        </Text>
+                      </Flex>
+                      <Progress 
+                        value={statusItem.percentage} 
+                        colorScheme={statusItem.color} 
+                        borderRadius="full"
+                        size="sm"
+                      />
+                    </Box>
+                  ))}
+                </Stack>
+              </Skeleton>
+              
+              <Box mt={6}>
+                <Flex justify="flex-end">
+                  <Button 
+                    as={NextLink} 
+                    href="/inventory/blood-units" 
+                    size="sm" 
+                    colorScheme="blue" 
+                    variant="outline"
+                  >
+                    View All Units
+                  </Button>
+                </Flex>
+              </Box>
+            </CardBody>
+          </Card>
+        </GridItem>
+        
+        <GridItem>
+          <Card bg={cardBg} boxShadow="sm">
+            <CardHeader pb={1}>
+              <Heading size="md">Age Distribution</Heading>
+            </CardHeader>
+            <Divider />
+            <CardBody>
+              <Skeleton isLoaded={!loading} height="250px" borderRadius="md">
+                {ageDistributionData && (
+                  <Box height="250px" position="relative">
+                    <Bar data={ageDistributionData} options={ageChartOptions} />
+                  </Box>
+                )}
+              </Skeleton>
+            </CardBody>
+          </Card>
+        </GridItem>
+        
+        <GridItem>
+          <Card bg={cardBg} boxShadow="sm">
+            <CardHeader pb={1}>
+              <Flex justify="space-between" align="center">
+                <Heading size="md">Critical Expiry Alerts</Heading>
+                <Badge colorScheme="red" py={1} px={2} borderRadius="full">
+                  {loading ? '...' : expiryData?.summary?.critical || 0} critical
+                </Badge>
+              </Flex>
+            </CardHeader>
+            <Divider />
+            <CardBody>
+              <Skeleton isLoaded={!loading}>
+                {expiryData?.expiringUnits?.length > 0 ? (
+                  <Stack spacing={3}>
+                    {expiryData.expiringUnits.slice(0, 5).map((unit) => (
+                      <Box key={unit._id} p={3} borderWidth="1px" borderRadius="md">
+                        <Flex justify="space-between" mb={1}>
+                          <Badge colorScheme="red">{unit.bloodType}</Badge>
+                          <Badge 
+                            colorScheme={new Date(unit.expirationDate) <= new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) ? 'red' : 'orange'}
+                          >
+                            Expires: {new Date(unit.expirationDate).toLocaleDateString()}
+                          </Badge>
+                        </Flex>
+                        <Flex justify="space-between" mt={2}>
+                          <Text fontSize="sm">Unit ID: {unit.unitId}</Text>
+                          <Text fontSize="sm">{unit.location?.facility}</Text>
+                        </Flex>
+                      </Box>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Alert status="info">
+                    <AlertIcon />
+                    No critical expiry alerts at this time
+                  </Alert>
+                )}
+              </Skeleton>
+              
+              <Box mt={4}>
+                <Flex justify="flex-end">
+                  <Button 
+                    as={NextLink} 
+                    href="/inventory/expiry-tracking" 
+                    size="sm" 
+                    colorScheme="orange" 
+                    variant="outline"
+                  >
+                    View All Expiring Units
+                  </Button>
+                </Flex>
+              </Box>
+            </CardBody>
+          </Card>
+        </GridItem>
+      </Grid>
     </Box>
   );
 };
