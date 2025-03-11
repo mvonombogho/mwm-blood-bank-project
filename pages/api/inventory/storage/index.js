@@ -1,157 +1,111 @@
-import dbConnect from '../../../../lib/mongodb';
+import { connectToDatabase } from '../../../../lib/mongodb';
 import Storage from '../../../../models/Storage';
-import withAuth from '../../../../lib/middlewares/withAuth';
+import StorageLog from '../../../../models/StorageLog';
+import { getSession } from 'next-auth/react';
 
-async function handler(req, res) {
+export default async function handler(req, res) {
   const { method } = req;
 
-  await dbConnect();
+  try {
+    const session = await getSession({ req });
+    if (!session) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
 
-  switch (method) {
-    case 'GET':
-      try {
-        // Parse query parameters
-        const page = parseInt(req.query.page, 10) || 1;
-        const limit = parseInt(req.query.limit, 10) || 10;
-        const skip = (page - 1) * limit;
-        
-        // Build filter object
-        const filter = {};
-        
-        if (req.query.search) {
-          const searchRegex = new RegExp(req.query.search, 'i');
-          filter.$or = [
-            { storageUnitId: searchRegex },
-            { name: searchRegex },
-            { facilityId: searchRegex },
-            { facilityName: searchRegex }
-          ];
-        }
-        
-        if (req.query.status) {
-          filter.status = req.query.status;
-        }
-        
-        if (req.query.type) {
-          filter.type = req.query.type;
-        }
-        
-        if (req.query.facility) {
-          filter.facilityId = req.query.facility;
-        }
-        
-        if (req.query.bloodType) {
-          filter.bloodTypes = req.query.bloodType;
-        }
-        
-        if (req.query.componentType) {
-          filter.componentTypes = req.query.componentType;
-        }
-        
-        // Execute query with pagination
-        const storageUnits = await Storage.find(filter)
-          .sort({ name: 1 })
-          .skip(skip)
-          .limit(limit);
-        
-        // Get total count for pagination
-        const total = await Storage.countDocuments(filter);
-        
-        res.status(200).json({
-          storageUnits,
-          pagination: {
-            total,
-            page,
-            limit,
-            pages: Math.ceil(total / limit)
-          }
-        });
-      } catch (error) {
-        console.error('Error fetching storage units:', error);
-        res.status(500).json({ message: 'Error fetching storage units', error: error.message });
-      }
-      break;
-      
-    case 'POST':
-      try {
-        // Extract data from request body
-        const {
-          storageUnitId,
-          name,
-          facilityId,
-          facilityName,
-          type,
-          location,
-          temperature,
-          capacity,
-          model,
+    await connectToDatabase();
+
+    switch (method) {
+      case 'GET':
+        // Get all storage units
+        const storageUnits = await Storage.find({}).sort({ facilityName: 1, name: 1 }).lean();
+        return res.status(200).json(storageUnits);
+
+      case 'POST':
+        // Create a new storage unit
+        const { 
+          storageUnitId, 
+          name, 
+          facilityId, 
+          facilityName, 
+          type, 
+          location, 
+          temperature, 
+          capacity, 
+          model, 
           maintenance,
           monitoring,
           bloodTypes,
           componentTypes,
+          status,
           notes
         } = req.body;
-        
+
         // Validate required fields
-        if (!storageUnitId || !name || !facilityId || !facilityName || !type || !location || !temperature || !capacity) {
-          return res.status(400).json({
-            message: 'Required fields missing',
-            requiredFields: ['storageUnitId', 'name', 'facilityId', 'facilityName', 'type', 'location', 'temperature', 'capacity']
-          });
+        if (!storageUnitId || !name || !facilityId || !facilityName || !type) {
+          return res.status(400).json({ message: 'Missing required fields' });
         }
-        
+
         // Check if storage unit ID already exists
         const existingUnit = await Storage.findOne({ storageUnitId });
         if (existingUnit) {
-          return res.status(400).json({ message: 'Storage unit with this ID already exists' });
+          return res.status(400).json({ message: 'Storage unit ID already exists' });
         }
-        
-        // Calculate available capacity percentage
-        const availablePercentage = ((capacity.total - capacity.used) / capacity.total) * 100;
-        
-        // Create the storage unit
-        const storageUnit = await Storage.create({
+
+        // Create new storage unit
+        const newStorageUnit = new Storage({
           storageUnitId,
           name,
           facilityId,
           facilityName,
           type,
-          location,
-          temperature,
-          capacity: {
-            ...capacity,
-            availablePercentage
-          },
-          model,
-          maintenance,
-          monitoring,
-          bloodTypes,
-          componentTypes,
-          status: req.body.status || 'Operational',
-          notes
+          location: location || {},
+          temperature: temperature || { min: 2, max: 8, target: 4, units: 'Celsius' },
+          capacity: capacity || { total: 0, used: 0, availablePercentage: 100, units: 'Units' },
+          model: model || {},
+          maintenance: maintenance || {},
+          monitoring: monitoring || { hasAlarm: true, monitoringFrequency: 30, autoLogging: true },
+          bloodTypes: bloodTypes || ['Any'],
+          componentTypes: componentTypes || ['Any'],
+          status: status || 'Operational',
+          notes: notes || '',
+          currentTemperature: {
+            value: temperature?.target || 4,
+            updatedAt: new Date(),
+            status: 'Normal'
+          }
         });
-        
-        res.status(201).json(storageUnit);
-      } catch (error) {
-        console.error('Error creating storage unit:', error);
-        
-        if (error.name === 'ValidationError') {
-          const errors = Object.keys(error.errors).reduce((acc, key) => {
-            acc[key] = error.errors[key].message;
-            return acc;
-          }, {});
-          
-          return res.status(400).json({ message: 'Validation error', errors });
-        }
-        
-        res.status(500).json({ message: 'Error creating storage unit', error: error.message });
-      }
-      break;
-      
-    default:
-      res.setHeader('Allow', ['GET', 'POST']);
-      res.status(405).json({ message: `Method ${method} Not Allowed` });
+
+        await newStorageUnit.save();
+
+        // Create initial storage log
+        const newStorageLog = new StorageLog({
+          storageUnitId,
+          facilityId,
+          readings: [{
+            temperature: temperature?.target || 4,
+            recordedAt: new Date(),
+            recordedBy: session.user.name || session.user.email,
+            status: 'Normal'
+          }],
+          status: 'Operational',
+          capacity: {
+            total: capacity?.total || 0,
+            used: 0,
+            available: capacity?.total || 0
+          },
+          lastUpdated: new Date()
+        });
+
+        await newStorageLog.save();
+
+        return res.status(201).json(newStorageUnit);
+
+      default:
+        res.setHeader('Allow', ['GET', 'POST']);
+        return res.status(405).json({ message: `Method ${method} Not Allowed` });
+    }
+  } catch (error) {
+    console.error('Error in storage API:', error);
+    return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 }
-
-export default withAuth(handler, { requiredPermission: 'canManageInventory' });
