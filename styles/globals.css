@@ -1,37 +1,63 @@
-/* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Global styles */
 
-* {
-  box-sizing: border-box;
-}
-
+/* Default font and base styles */
 html,
 body {
   padding: 0;
   margin: 0;
-  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
 }
 
+/* Make box sizing consistent */
+* {
+  box-sizing: border-box;
+}
+
+/* Remove default link styles */
 a {
   color: inherit;
   text-decoration: none;
 }
 
-/* Custom scrollbar styles */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f5f5f5;
+  background: #f1f1f1;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d1d1d1;
+  background: #ccc;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a3a3a3;
+  background: #aaa;
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white;
+  }
+
+  /* Hide navigation and buttons when printing */
+  nav, button, .no-print {
+    display: none !important;
+  }
+
+  /* Ensure text and content is black for better printing */
+  body, p, h1, h2, h3, h4, h5, h6, span, table {
+    color: black !important;
+  }
+
+  /* Ensure backgrounds are white/transparent for printing */
+  .print-transparent {
+    background-color: transparent !important;
+  }
 }
