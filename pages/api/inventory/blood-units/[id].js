@@ -1,104 +1,110 @@
-import dbConnect from '@/lib/mongodb';
-import BloodUnit from '@/models/BloodUnit';
-import mongoose from 'mongoose';
+import dbConnect from '../../../../lib/dbConnect';
+import BloodUnit from '../../../../models/BloodUnit';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../../auth/[...nextauth]';
 
 export default async function handler(req, res) {
-  const {
-    query: { id },
-    method,
-  } = req;
-
+  const { method } = req;
+  const { id } = req.query;
+  
+  // Uncomment this when auth is implemented
+  // const session = await getServerSession(req, res, authOptions);
+  // if (!session) {
+  //   return res.status(401).json({ success: false, message: 'Unauthorized' });
+  // }
+  
   await dbConnect();
-
-  // Find blood unit either by MongoDB _id or unitId string
-  let bloodUnit;
-  if (mongoose.Types.ObjectId.isValid(id)) {
-    bloodUnit = await BloodUnit.findById(id).populate('donorId', 'firstName lastName donorId bloodType');
-  } else {
-    bloodUnit = await BloodUnit.findOne({ unitId: id }).populate('donorId', 'firstName lastName donorId bloodType');
-  }
-
-  if (!bloodUnit) {
-    return res.status(404).json({ success: false, error: 'Blood unit not found' });
-  }
-
+  
   switch (method) {
-    // GET blood unit by ID
     case 'GET':
       try {
-        res.status(200).json({ success: true, data: bloodUnit });
+        // Get blood unit by id
+        const bloodUnit = await BloodUnit.findById(id);
+        
+        if (!bloodUnit) {
+          return res.status(404).json({ success: false, message: 'Blood unit not found' });
+        }
+        
+        return res.status(200).json({ success: true, data: bloodUnit });
       } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        console.error('Error fetching blood unit:', error);
+        return res.status(500).json({ success: false, message: error.message });
       }
-      break;
-
-    // PUT (update) blood unit
+    
     case 'PUT':
       try {
-        const { status, ...updateData } = req.body;
+        // Extract blood unit data from request body
+        const bloodUnitData = req.body;
         
-        // If status is being updated, add to status history
-        if (status && status !== bloodUnit.status) {
-          const statusHistoryEntry = {
-            status: status,
-            date: new Date(),
-            updatedBy: req.body.updatedBy || 'System',
-            notes: req.body.statusNotes || `Status changed from ${bloodUnit.status} to ${status}`
-          };
-          
-          // Add to status history
-          if (!bloodUnit.statusHistory) {
-            bloodUnit.statusHistory = [];
-          }
-          
-          updateData.statusHistory = [...bloodUnit.statusHistory, statusHistoryEntry];
+        // Update blood unit
+        const bloodUnit = await BloodUnit.findByIdAndUpdate(
+          id,
+          bloodUnitData,
+          { new: true, runValidators: true }
+        );
+        
+        if (!bloodUnit) {
+          return res.status(404).json({ success: false, message: 'Blood unit not found' });
         }
         
-        // Update the blood unit
-        const updatedBloodUnit = await BloodUnit.findByIdAndUpdate(
-          bloodUnit._id,
-          { ...updateData, status: status || bloodUnit.status },
-          {
-            new: true,
-            runValidators: true,
-          }
-        ).populate('donorId', 'firstName lastName donorId bloodType');
-
-        if (!updatedBloodUnit) {
-          return res.status(400).json({ success: false, error: 'Blood unit could not be updated' });
-        }
-
-        res.status(200).json({ success: true, data: updatedBloodUnit });
+        return res.status(200).json({ success: true, data: bloodUnit });
       } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        console.error('Error updating blood unit:', error);
+        return res.status(400).json({ success: false, message: error.message });
       }
-      break;
-
-    // DELETE blood unit
+    
+    case 'PATCH':
+      try {
+        // For updating status and adding status history
+        const { status, notes, updatedBy } = req.body;
+        
+        // Get current blood unit
+        const currentBloodUnit = await BloodUnit.findById(id);
+        
+        if (!currentBloodUnit) {
+          return res.status(404).json({ success: false, message: 'Blood unit not found' });
+        }
+        
+        // Add to status history
+        const statusHistoryEntry = {
+          status,
+          date: new Date(),
+          updatedBy: updatedBy || 'System',
+          notes: notes || ''
+        };
+        
+        // Update blood unit with new status and add to history
+        const bloodUnit = await BloodUnit.findByIdAndUpdate(
+          id,
+          {
+            status,
+            $push: { statusHistory: statusHistoryEntry }
+          },
+          { new: true, runValidators: true }
+        );
+        
+        return res.status(200).json({ success: true, data: bloodUnit });
+      } catch (error) {
+        console.error('Error updating blood unit status:', error);
+        return res.status(400).json({ success: false, message: error.message });
+      }
+    
     case 'DELETE':
       try {
-        // Check if blood unit can be deleted
-        if (bloodUnit.status === 'Transfused') {
-          return res.status(400).json({ 
-            success: false, 
-            error: 'Cannot delete transfused blood unit - historical records must be maintained'
-          });
+        // Delete blood unit
+        const deletedBloodUnit = await BloodUnit.findByIdAndDelete(id);
+        
+        if (!deletedBloodUnit) {
+          return res.status(404).json({ success: false, message: 'Blood unit not found' });
         }
         
-        const deletedBloodUnit = await BloodUnit.deleteOne({ _id: bloodUnit._id });
-        
-        if (deletedBloodUnit.deletedCount === 0) {
-          return res.status(400).json({ success: false, error: 'Blood unit could not be deleted' });
-        }
-        
-        res.status(200).json({ success: true, data: {} });
+        return res.status(200).json({ success: true, data: {} });
       } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        console.error('Error deleting blood unit:', error);
+        return res.status(500).json({ success: false, message: error.message });
       }
-      break;
-
+    
     default:
-      res.status(405).json({ success: false, error: `Method ${method} Not Allowed` });
-      break;
+      return res.status(405).json({ success: false, message: `Method ${method} Not Allowed` });
   }
 }
