@@ -1,42 +1,44 @@
-import { useState } from 'react';
-import { Box, Heading, Button, HStack, useDisclosure } from '@chakra-ui/react';
-import { FaPlus } from 'react-icons/fa';
+import { Container, Heading, Box, Text } from '@chakra-ui/react';
 import Layout from '../../components/Layout';
-import BloodUnitsList from '../../components/inventory/BloodUnitsList';
-import AddBloodUnitModal from '../../components/inventory/AddBloodUnitModal';
+import EnhancedBloodUnitManagement from '../../components/inventory/EnhancedBloodUnitManagement';
+import { useSession } from 'next-auth/react';
 
-export default function BloodUnits() {
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [isLoading, setIsLoading] = useState(false);
+const BloodUnitsPage = () => {
+  const { data: session, status } = useSession();
+
+  if (status === 'loading') {
+    return (
+      <Layout>
+        <Container maxW="container.xl" py={6}>
+          <Text>Loading...</Text>
+        </Container>
+      </Layout>
+    );
+  }
+
+  if (!session) {
+    return (
+      <Layout>
+        <Container maxW="container.xl" py={6}>
+          <Heading as="h1" size="xl" mb={6}>
+            Blood Units Management
+          </Heading>
+          <Text>Please sign in to access this page.</Text>
+        </Container>
+      </Layout>
+    );
+  }
 
   return (
-    <Layout title="Blood Units Inventory">
-      <Box maxW="7xl" mx={'auto'} pt={5} px={{ base: 2, sm: 12, md: 17 }}>
-        <HStack justifyContent="space-between" mb={6}>
-          <Heading as="h1" size="xl">
-            Blood Units Inventory
-          </Heading>
-          <Button 
-            leftIcon={<FaPlus />} 
-            colorScheme="red" 
-            onClick={onOpen}
-          >
-            Add Blood Unit
-          </Button>
-        </HStack>
-        
-        <BloodUnitsList isLoading={isLoading} />
-        
-        <AddBloodUnitModal 
-          isOpen={isOpen} 
-          onClose={onClose} 
-          onSuccess={() => {
-            // Refresh the list after successful addition
-            setIsLoading(true);
-            setTimeout(() => setIsLoading(false), 500); // Simulated refresh
-          }} 
-        />
-      </Box>
+    <Layout>
+      <Container maxW="container.xl" py={6}>
+        <Heading as="h1" size="xl" mb={6}>
+          Blood Units Management
+        </Heading>
+        <EnhancedBloodUnitManagement />
+      </Container>
     </Layout>
   );
-}
+};
+
+export default BloodUnitsPage;
