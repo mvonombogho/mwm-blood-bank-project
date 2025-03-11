@@ -1,201 +1,239 @@
-import dbConnect from '@/lib/mongodb';
-import StorageLog from '@/models/StorageLog';
-import mongoose from 'mongoose';
+import dbConnect from '../../../../lib/mongodb';
+import Storage from '../../../../models/Storage';
+import StorageLog from '../../../../models/StorageLog';
+import withAuth from '../../../../lib/middlewares/withAuth';
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const { method } = req;
 
   await dbConnect();
 
   switch (method) {
-    // GET temperature readings with filtering
     case 'GET':
       try {
-        const { 
-          unitId, 
-          facilityId, 
-          startDate, 
-          endDate, 
-          status,
-          limit = 100
-        } = req.query;
+        // Required parameters
+        const { storageUnitId, facilityId } = req.query;
         
-        // Build query for finding storage units
-        let unitQuery = {};
-        
-        if (unitId) {
-          if (mongoose.Types.ObjectId.isValid(unitId)) {
-            unitQuery._id = unitId;
-          } else {
-            unitQuery.storageUnitId = unitId;
-          }
+        if (!storageUnitId || !facilityId) {
+          return res.status(400).json({ 
+            message: 'Required parameters missing', 
+            requiredParameters: ['storageUnitId', 'facilityId'] 
+          });
         }
         
-        if (facilityId) {
-          unitQuery.facilityId = facilityId;
-        }
-        
-        // Get storage units
-        const storageUnits = await StorageLog.find(unitQuery);
-        
-        // Extract and filter temperature readings
-        let allReadings = [];
-        
-        storageUnits.forEach(unit => {
-          if (!unit.readings || unit.readings.length === 0) return;
-          
-          // Filter readings based on criteria
-          let filteredReadings = unit.readings;
-          
-          // Filter by date range
-          if (startDate || endDate) {
-            filteredReadings = filteredReadings.filter(reading => {
-              const readingDate = new Date(reading.recordedAt);
-              
-              if (startDate && endDate) {
-                return readingDate >= new Date(startDate) && readingDate <= new Date(endDate);
-              } else if (startDate) {
-                return readingDate >= new Date(startDate);
-              } else if (endDate) {
-                return readingDate <= new Date(endDate);
-              }
-              
-              return true;
-            });
-          }
-          
-          // Filter by status
-          if (status) {
-            filteredReadings = filteredReadings.filter(reading => reading.status === status);
-          }
-          
-          // Add unit information to each reading
-          const readingsWithUnitInfo = filteredReadings.map(reading => ({
-            ...reading.toObject(),
-            storageUnit: {
-              _id: unit._id,
-              storageUnitId: unit.storageUnitId,
-              facilityId: unit.facilityId,
-              status: unit.status
-            }
-          }));
-          
-          allReadings = allReadings.concat(readingsWithUnitInfo);
+        // Find storage logs
+        const storageLog = await StorageLog.findOne({ 
+          storageUnitId, 
+          facilityId 
         });
         
-        // Sort by recorded time (newest first)
-        allReadings.sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt));
-        
-        // Apply limit
-        if (limit && !isNaN(limit)) {
-          allReadings = allReadings.slice(0, parseInt(limit));
+        if (!storageLog) {
+          return res.status(404).json({ message: 'No temperature logs found for this storage unit' });
         }
         
-        res.status(200).json({ 
-          success: true, 
-          count: allReadings.length,
-          data: allReadings 
+        // Optional time range filtering
+        const range = req.query.range || '24h'; // Default 24 hours
+        const limit = parseInt(req.query.limit, 10) || 100; // Default 100 readings
+        
+        let startDate;
+        const now = new Date();
+        
+        switch (range) {
+          case '1h':
+            startDate = new Date(now.getTime() - 1 * 60 * 60 * 1000);
+            break;
+          case '6h':
+            startDate = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+            break;
+          case '24h':
+            startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            break;
+          case '7d':
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case '30d':
+            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            break;
+          default:
+            startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        }
+        
+        // Filter readings by date
+        const filteredReadings = storageLog.readings
+          .filter(reading => new Date(reading.recordedAt) >= startDate)
+          .sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt))
+          .slice(0, limit);
+        
+        // Get storage unit details
+        const storageUnit = await Storage.findOne({ 
+          storageUnitId, 
+          facilityId 
+        });
+        
+        // Calculate stats
+        const stats = filteredReadings.length > 0 ? {
+          average: filteredReadings.reduce((sum, r) => sum + r.temperature, 0) / filteredReadings.length,
+          min: Math.min(...filteredReadings.map(r => r.temperature)),
+          max: Math.max(...filteredReadings.map(r => r.temperature)),
+          latest: filteredReadings[0]?.temperature,
+          latestTime: filteredReadings[0]?.recordedAt,
+          warningCount: filteredReadings.filter(r => r.status === 'Warning').length,
+          criticalCount: filteredReadings.filter(r => r.status === 'Critical').length
+        } : null;
+        
+        res.status(200).json({
+          storageUnit: storageUnit ? {
+            name: storageUnit.name,
+            type: storageUnit.type,
+            temperatureRange: {
+              min: storageUnit.temperature.min,
+              max: storageUnit.temperature.max,
+              target: storageUnit.temperature.target,
+              units: storageUnit.temperature.units
+            },
+            status: storageUnit.status,
+            location: storageUnit.location
+          } : null,
+          readings: filteredReadings.map(reading => ({
+            temperature: reading.temperature,
+            humidity: reading.humidity,
+            recordedAt: reading.recordedAt,
+            status: reading.status
+          })),
+          stats
         });
       } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        console.error('Error fetching temperature data:', error);
+        res.status(500).json({ message: 'Error fetching temperature data', error: error.message });
       }
       break;
-
-    // POST a new temperature reading
+      
     case 'POST':
       try {
-        const { unitId, temperature, humidity, recordedBy, notes } = req.body;
+        // Extract data from request body
+        const { 
+          storageUnitId, 
+          facilityId, 
+          temperature, 
+          humidity, 
+          status, 
+          notes 
+        } = req.body;
         
-        if (!unitId || temperature === undefined) {
+        // Validate required fields
+        if (!storageUnitId || !facilityId || temperature === undefined) {
           return res.status(400).json({ 
-            success: false, 
-            error: 'Both unitId and temperature are required' 
+            message: 'Required fields missing', 
+            requiredFields: ['storageUnitId', 'facilityId', 'temperature'] 
           });
         }
         
-        // Find the storage unit
-        let storageUnit;
-        if (mongoose.Types.ObjectId.isValid(unitId)) {
-          storageUnit = await StorageLog.findById(unitId);
-        } else {
-          storageUnit = await StorageLog.findOne({ storageUnitId: unitId });
-        }
+        // Find or create storage log
+        let storageLog = await StorageLog.findOne({ storageUnitId, facilityId });
         
-        if (!storageUnit) {
-          return res.status(404).json({ success: false, error: 'Storage unit not found' });
-        }
-        
-        // Determine temperature status
-        // Assuming normal range for blood storage is 2-6°C (35.6-42.8°F)
-        let status = 'Normal';
-        if (temperature < 2) {
-          status = 'Warning';
-        } else if (temperature < 1 || temperature > 7) {
-          status = 'Critical';
-        } else if (temperature > 6) {
-          status = 'Warning';
-        }
-        
-        // Create temperature reading
-        const reading = {
-          temperature,
-          humidity: humidity !== undefined ? humidity : null,
-          recordedAt: new Date(),
-          recordedBy: recordedBy || 'System',
-          status,
-          notes: notes || ''
-        };
-        
-        // Add reading to storage unit
-        if (!storageUnit.readings) {
-          storageUnit.readings = [];
-        }
-        
-        storageUnit.readings.push(reading);
-        
-        // Update lastUpdated timestamp
-        storageUnit.lastUpdated = new Date();
-        
-        // Create an alarm if temperature is critical
-        if (status === 'Critical') {
-          if (!storageUnit.alarmHistory) {
-            storageUnit.alarmHistory = [];
+        if (!storageLog) {
+          // Get storage unit info
+          const storageUnit = await Storage.findOne({ storageUnitId, facilityId });
+          
+          if (!storageUnit) {
+            return res.status(404).json({ message: 'Storage unit not found' });
           }
           
-          storageUnit.alarmHistory.push({
-            alarmType: 'Temperature',
-            severity: 'High',
-            triggeredAt: new Date(),
-            description: `Temperature reading (${temperature}°C) outside safe range`,
-            status: 'Active'
+          storageLog = await StorageLog.create({
+            storageUnitId,
+            facilityId,
+            readings: [],
+            status: storageUnit.status,
+            capacity: storageUnit.capacity
           });
         }
         
-        // Save the storage unit
-        await storageUnit.save();
+        // Determine temperature status if not provided
+        let calculatedStatus = status;
         
-        // Get the newly added reading
-        const newReading = storageUnit.readings[storageUnit.readings.length - 1];
-        
-        res.status(201).json({ 
-          success: true, 
-          data: {
-            ...newReading.toObject(),
-            storageUnit: {
-              _id: storageUnit._id,
-              storageUnitId: storageUnit.storageUnitId,
-              facilityId: storageUnit.facilityId,
-              status: storageUnit.status
+        if (!calculatedStatus) {
+          const storageUnit = await Storage.findOne({ storageUnitId, facilityId });
+          
+          if (storageUnit && storageUnit.temperature) {
+            if (temperature < storageUnit.temperature.min || temperature > storageUnit.temperature.max) {
+              // If outside range by more than 20%
+              const lowerThreshold = storageUnit.temperature.min - (0.2 * (storageUnit.temperature.max - storageUnit.temperature.min));
+              const upperThreshold = storageUnit.temperature.max + (0.2 * (storageUnit.temperature.max - storageUnit.temperature.min));
+              
+              if (temperature < lowerThreshold || temperature > upperThreshold) {
+                calculatedStatus = 'Critical';
+              } else {
+                calculatedStatus = 'Warning';
+              }
+            } else {
+              calculatedStatus = 'Normal';
             }
+          } else {
+            calculatedStatus = 'Normal';
           }
+        }
+        
+        // Add new temperature reading
+        const newReading = {
+          temperature,
+          humidity,
+          recordedAt: new Date(),
+          recordedBy: req.user.id,
+          status: calculatedStatus,
+          notes
+        };
+        
+        storageLog.readings.push(newReading);
+        storageLog.lastUpdated = new Date();
+        
+        // Check for critical conditions and create alarm if needed
+        if (calculatedStatus === 'Critical') {
+          const hasActiveAlarm = storageLog.alarmHistory.some(
+            alarm => alarm.alarmType === 'Temperature' && 
+                    (alarm.status === 'Active' || alarm.status === 'Acknowledged')
+          );
+          
+          if (!hasActiveAlarm) {
+            storageLog.alarmHistory.push({
+              alarmType: 'Temperature',
+              severity: 'High',
+              triggeredAt: new Date(),
+              description: `Temperature reading of ${temperature}° is critical (outside allowed range)`,
+              status: 'Active'
+            });
+          }
+        }
+        
+        await storageLog.save();
+        
+        // Update current temperature in storage unit
+        await Storage.updateOne(
+          { storageUnitId, facilityId },
+          { 
+            $set: { 
+              currentTemperature: {
+                value: temperature,
+                updatedAt: new Date(),
+                status: calculatedStatus
+              }
+            } 
+          }
+        );
+        
+        res.status(201).json({
+          message: 'Temperature reading added successfully',
+          reading: newReading
         });
       } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        console.error('Error recording temperature:', error);
+        res.status(500).json({ message: 'Error recording temperature reading', error: error.message });
       }
       break;
-
+      
     default:
-      res.status(405).json({ success: false, error: `Method ${method} Not Allowed` });
-      break;
+      res.setHeader('Allow', ['GET', 'POST']);
+      res.status(405).json({ message: `Method ${method} Not Allowed` });
   }
 }
+
+export default withAuth(handler, { requiredPermission: 'canManageInventory' });
