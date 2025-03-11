@@ -147,3 +147,156 @@ const DonorList = () => {
       default: return 'gray';
     }
   };
+  
+  return (
+    <Box>
+      <Flex direction={{ base: 'column', md: 'row' }} mb={5} gap={3} justify="space-between">
+        <Box flex="1">
+          <form onSubmit={handleSearch}>
+            <InputGroup>
+              <InputLeftElement pointerEvents="none">
+                <SearchIcon color="gray.300" />
+              </InputLeftElement>
+              <Input
+                placeholder="Search by name, email or phone"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </InputGroup>
+          </form>
+        </Box>
+        
+        <Stack direction={{ base: 'column', sm: 'row' }} spacing={3}>
+          <Select
+            placeholder="All Blood Types"
+            value={bloodTypeFilter}
+            onChange={handleBloodTypeChange}
+            width={{ base: 'full', md: '150px' }}
+          >
+            <option value="A+">A+</option>
+            <option value="A-">A-</option>
+            <option value="B+">B+</option>
+            <option value="B-">B-</option>
+            <option value="AB+">AB+</option>
+            <option value="AB-">AB-</option>
+            <option value="O+">O+</option>
+            <option value="O-">O-</option>
+          </Select>
+          
+          <Select
+            placeholder="All Status"
+            value={statusFilter}
+            onChange={handleStatusChange}
+            width={{ base: 'full', md: '150px' }}
+          >
+            <option value="active">Active</option>
+            <option value="pending">Pending</option>
+            <option value="deferred">Deferred</option>
+            <option value="ineligible">Ineligible</option>
+          </Select>
+          
+          <Button colorScheme="blue" onClick={() => router.push('/donors/add')}>
+            Add Donor
+          </Button>
+        </Stack>
+      </Flex>
+
+      {donors.length > 0 ? (
+        <Box overflowX="auto">
+          <Table variant="simple">
+            <Thead>
+              <Tr>
+                <Th>Name</Th>
+                <Th>Blood Type</Th>
+                <Th>Contact Info</Th>
+                <Th>Status</Th>
+                <Th>Last Donation</Th>
+                <Th>Actions</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {donors.map((donor) => (
+                <Tr key={donor._id}>
+                  <Td>
+                    <Text fontWeight="medium">{donor.firstName} {donor.lastName}</Text>
+                    <Text fontSize="sm" color="gray.500">ID: {donor.donorId}</Text>
+                  </Td>
+                  <Td>
+                    <Badge colorScheme="red" fontSize="0.9em" p="1">
+                      {donor.bloodType}
+                    </Badge>
+                  </Td>
+                  <Td>
+                    <Text>{donor.email}</Text>
+                    <Text color="gray.600">{donor.phone}</Text>
+                  </Td>
+                  <Td>
+                    <Badge colorScheme={getStatusBadgeColor(donor.status)} p="1">
+                      {donor.status}
+                    </Badge>
+                  </Td>
+                  <Td>
+                    {donor.lastDonation ? new Date(donor.lastDonation).toLocaleDateString() : 'Never'}
+                  </Td>
+                  <Td>
+                    <IconButton
+                      icon={<ViewIcon />}
+                      aria-label="View donor"
+                      size="sm"
+                      mr={2}
+                      onClick={() => handleViewDonor(donor._id)}
+                    />
+                    <IconButton
+                      icon={<EditIcon />}
+                      aria-label="Edit donor"
+                      size="sm"
+                      mr={2}
+                      onClick={() => handleEditDonor(donor._id)}
+                    />
+                    <IconButton
+                      icon={<DeleteIcon />}
+                      aria-label="Delete donor"
+                      size="sm"
+                      colorScheme="red"
+                      onClick={() => handleDeleteDonor(donor._id, `${donor.firstName} ${donor.lastName}`)}
+                    />
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+          
+          {/* Pagination */}
+          <Flex justify="space-between" align="center" mt={4}>
+            <Text color="gray.600">
+              Showing {donors.length} of {pagination.total} donors
+            </Text>
+            <Stack direction="row" spacing={2}>
+              <Button
+                size="sm"
+                onClick={() => handlePageChange(pagination.page - 1)}
+                isDisabled={pagination.page === 1 || loading}
+              >
+                Previous
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handlePageChange(pagination.page + 1)}
+                isDisabled={pagination.page >= pagination.pages || loading}
+              >
+                Next
+              </Button>
+            </Stack>
+          </Flex>
+        </Box>
+      ) : (
+        <Alert status="info">
+          <AlertIcon />
+          {loading ? 'Loading donors...' : 'No donors found matching your criteria'}
+        </Alert>
+      )}
+    </Box>
+  );
+};
+
+export default DonorList;
