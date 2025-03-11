@@ -86,3 +86,90 @@ const BloodUnitList = () => {
       setLoading(false);
     }
   };
+  
+  // Initialize
+  useEffect(() => {
+    fetchBloodUnits(pagination.page);
+  }, []);
+  
+  // Handlers
+  const handleSearch = (e) => {
+    e.preventDefault();
+    fetchBloodUnits(1); // Reset to first page when searching
+  };
+  
+  const handleBloodTypeChange = (e) => {
+    setBloodTypeFilter(e.target.value);
+    fetchBloodUnits(1); // Reset to first page when filter changes
+  };
+  
+  const handleStatusChange = (e) => {
+    setStatusFilter(e.target.value);
+    fetchBloodUnits(1); // Reset to first page when filter changes
+  };
+  
+  const handlePageChange = (newPage) => {
+    fetchBloodUnits(newPage);
+  };
+  
+  const handleViewBloodUnit = (unitId) => {
+    router.push(`/inventory/blood-units/${unitId}`);
+  };
+  
+  const handleAddBloodUnit = () => {
+    router.push(`/inventory/blood-units/add`);
+  };
+  
+  const handleEditBloodUnit = (unitId) => {
+    router.push(`/inventory/blood-units/${unitId}/edit`);
+  };
+  
+  const handleDeleteConfirm = (unit) => {
+    setUnitToDelete(unit);
+    onDeleteOpen();
+  };
+  
+  const handleDeleteBloodUnit = async () => {
+    if (!unitToDelete) return;
+    
+    try {
+      setLoading(true);
+      await axios.delete(`/api/inventory/blood-units/${unitToDelete._id}`);
+      
+      toast({
+        title: 'Blood unit deleted',
+        description: `Unit ${unitToDelete.unitId} has been deleted`,
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
+      
+      // Refresh blood unit list
+      fetchBloodUnits(pagination.page);
+      onDeleteClose();
+      setUnitToDelete(null);
+    } catch (error) {
+      toast({
+        title: 'Error deleting blood unit',
+        description: error.response?.data?.message || 'Could not delete blood unit',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Get status badge color
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Available': return 'green';
+      case 'Reserved': return 'blue';
+      case 'Quarantined': return 'yellow';
+      case 'Discarded': return 'gray';
+      case 'Transfused': return 'purple';
+      case 'Expired': return 'red';
+      default: return 'gray';
+    }
+  };
