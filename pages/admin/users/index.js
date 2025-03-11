@@ -258,3 +258,146 @@ const UserManagementPage = () => {
       setLoading(false);
     }
   };
+  
+  return (
+    <ProtectedRoute requiredPermission="canManageUsers">
+      <Container maxW="container.xl" py="8">
+        <Box mb="8">
+          <Flex justify="space-between" align="center" mb="4">
+            <Heading size="lg">User Management</Heading>
+            <Button
+              colorScheme="blue"
+              leftIcon={<AddIcon />}
+              onClick={handleCreateUser}
+            >
+              Add User
+            </Button>
+          </Flex>
+          
+          <Flex 
+            as="form" 
+            width="full" 
+            mb="6" 
+            onSubmit={handleSearch}
+          >
+            <InputGroup size="md">
+              <InputLeftElement pointerEvents="none">
+                <SearchIcon color="gray.300" />
+              </InputLeftElement>
+              <Input
+                placeholder="Search by name or email"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                variant="filled"
+              />
+            </InputGroup>
+            <Button
+              ml="2"
+              colorScheme="blue"
+              type="submit"
+              isLoading={loading}
+            >
+              Search
+            </Button>
+          </Flex>
+          
+          {users.length > 0 ? (
+            <Box overflowX="auto">
+              <Table variant="simple">
+                <Thead>
+                  <Tr>
+                    <Th>Name</Th>
+                    <Th>Email</Th>
+                    <Th>Role</Th>
+                    <Th>Department</Th>
+                    <Th>Status</Th>
+                    <Th>Actions</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {users.map((user) => (
+                    <Tr key={user._id}>
+                      <Td>{user.name}</Td>
+                      <Td>{user.email}</Td>
+                      <Td>
+                        <Badge 
+                          colorScheme={user.role === 'admin' ? 'red' : 
+                                      user.role === 'manager' ? 'purple' : 
+                                      user.role === 'technician' ? 'green' : 
+                                      user.role === 'donor_coordinator' ? 'blue' : 'gray'}
+                          py="1"
+                          px="2"
+                          borderRadius="full"
+                        >
+                          {user.role.replace('_', ' ')}
+                        </Badge>
+                      </Td>
+                      <Td>{user.department || '-'}</Td>
+                      <Td>
+                        <Badge 
+                          colorScheme={user.status === 'active' ? 'green' : 
+                                      user.status === 'inactive' ? 'red' : 'yellow'}
+                          py="1"
+                          px="2"
+                          borderRadius="full"
+                        >
+                          {user.status}
+                        </Badge>
+                      </Td>
+                      <Td>
+                        <IconButton
+                          icon={<EditIcon />}
+                          aria-label="Edit user"
+                          size="sm"
+                          mr="2"
+                          onClick={() => handleEditUser(user)}
+                        />
+                        <IconButton
+                          icon={<DeleteIcon />}
+                          aria-label="Delete user"
+                          size="sm"
+                          colorScheme="red"
+                          onClick={() => handleDeleteUserConfirm(user)}
+                        />
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+              
+              {/* Pagination */}
+              <Flex justify="space-between" align="center" mt="4">
+                <Text color="gray.600">
+                  Showing {users.length} of {pagination.total} results
+                </Text>
+                <Stack direction="row" spacing="2">
+                  <Button
+                    size="sm"
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    isDisabled={pagination.page === 1 || loading}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    isDisabled={pagination.page >= pagination.pages || loading}
+                  >
+                    Next
+                  </Button>
+                </Stack>
+              </Flex>
+            </Box>
+          ) : (
+            <Alert status="info">
+              <AlertIcon />
+              {loading ? 'Loading users...' : 'No users found'}
+            </Alert>
+          )}
+        </Box>
+      </Container>
+    </ProtectedRoute>
+  );
+};
+
+export default UserManagementPage;
