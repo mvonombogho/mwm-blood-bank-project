@@ -1,53 +1,44 @@
-import { useState } from 'react';
-import { Box, Heading, Button, HStack, Grid, GridItem, useDisclosure } from '@chakra-ui/react';
-import { FaPlus } from 'react-icons/fa';
+import { Container, Heading, Box, Text } from '@chakra-ui/react';
 import Layout from '../../components/Layout';
-import StorageUnitsList from '../../components/inventory/StorageUnitsList';
-import StorageTemperatureChart from '../../components/inventory/StorageTemperatureChart';
-import StorageAlerts from '../../components/inventory/StorageAlerts';
-import AddStorageUnitModal from '../../components/inventory/AddStorageUnitModal';
+import StorageManagement from '../../components/inventory/StorageManagement';
+import { useSession } from 'next-auth/react';
 
-export default function StorageManagementPage() {
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [isLoading, setIsLoading] = useState(false);
+const StoragePage = () => {
+  const { data: session, status } = useSession();
 
-  return (
-    <Layout title="Storage Management">
-      <Box maxW="7xl" mx={'auto'} pt={5} px={{ base: 2, sm: 12, md: 17 }}>
-        <HStack justifyContent="space-between" mb={6}>
-          <Heading as="h1" size="xl">
+  if (status === 'loading') {
+    return (
+      <Layout>
+        <Container maxW="container.xl" py={6}>
+          <Text>Loading...</Text>
+        </Container>
+      </Layout>
+    );
+  }
+
+  if (!session) {
+    return (
+      <Layout>
+        <Container maxW="container.xl" py={6}>
+          <Heading as="h1" size="xl" mb={6}>
             Storage Management
           </Heading>
-          <Button 
-            leftIcon={<FaPlus />} 
-            colorScheme="blue" 
-            onClick={onOpen}
-          >
-            Add Storage Unit
-          </Button>
-        </HStack>
-        
-        <Grid templateColumns={{ base: 'repeat(1, 1fr)', lg: 'repeat(3, 1fr)' }} gap={6} mb={8}>
-          <GridItem colSpan={{ base: 1, lg: 2 }}>
-            <StorageTemperatureChart />
-          </GridItem>
-          <GridItem colSpan={1}>
-            <StorageAlerts />
-          </GridItem>
-        </Grid>
-        
-        <StorageUnitsList isLoading={isLoading} />
-        
-        <AddStorageUnitModal 
-          isOpen={isOpen} 
-          onClose={onClose} 
-          onSuccess={() => {
-            // Refresh the list after successful addition
-            setIsLoading(true);
-            setTimeout(() => setIsLoading(false), 500); // Simulated refresh
-          }} 
-        />
-      </Box>
+          <Text>Please sign in to access this page.</Text>
+        </Container>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      <Container maxW="container.xl" py={6}>
+        <Heading as="h1" size="xl" mb={6}>
+          Storage Management
+        </Heading>
+        <StorageManagement />
+      </Container>
     </Layout>
   );
-}
+};
+
+export default StoragePage;
