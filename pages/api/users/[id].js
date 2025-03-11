@@ -1,95 +1,113 @@
-import dbConnect from '../../../lib/dbConnect';
+import dbConnect from '../../../lib/mongodb';
 import User from '../../../models/User';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
-import { formatResponse, handleApiError } from '../../../lib/apiUtils';
+import withAuth from '../../../lib/middlewares/withAuth';
 
-export default async function handler(req, res) {
-  const { method } = req;
+async function handler(req, res) {
   const { id } = req.query;
   
-  // Check for authentication
-  const session = await getServerSession(req, res, authOptions);
-  if (!session) {
-    return res.status(401).json(formatResponse(false, null, 'Unauthorized'));
+  if (!id) {
+    return res.status(400).json({ message: 'User ID is required' });
   }
-  
-  // Allow users to get their own data
-  const isSelf = session.user.id === id;
-  
-  // For non-self operations, check for user management permission
-  if (!isSelf && !session.user.permissions.canManageUsers) {
-    return res.status(403).json(formatResponse(false, null, 'Permission denied'));
-  }
-  
+
   await dbConnect();
-  
-  switch (method) {
-    case 'GET':
-      try {
-        // Get user by id
-        const user = await User.findById(id).select('-password');
-        
-        if (!user) {
-          return res.status(404).json(formatResponse(false, null, 'User not found'));
-        }
-        
-        return res.status(200).json(formatResponse(true, user));
-      } catch (error) {
-        return handleApiError(error, res);
+
+  try {
+    // GET - Get a single user
+    if (req.method === 'GET') {
+      const user = await User.findById(id).select('-password');
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
       }
       
-    case 'PUT':
-      try {
-        // Extract user data from request body
-        const userData = req.body;
-        
-        // Ensure only admins can change roles
-        if (userData.role && !isSelf && session.user.role !== 'admin') {
-          return res.status(403).json(formatResponse(false, null, 'Only administrators can change user roles'));
-        }
-        
-        // Update user
-        const user = await User.findByIdAndUpdate(
-          id,
-          userData,
-          { new: true, runValidators: true }
-        ).select('-password');
-        
-        if (!user) {
-          return res.status(404).json(formatResponse(false, null, 'User not found'));
-        }
-        
-        return res.status(200).json(formatResponse(true, user));
-      } catch (error) {
-        return handleApiError(error, res);
+      return res.status(200).json(user);
+    }
+    
+    // PUT - Update a user
+    if (req.method === 'PUT') {
+      // Get request body
+      const { name, email, role, status, department, contactNumber, permissions } = req.body;
+      
+      // Find user
+      const user = await User.findById(id);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
       }
       
-    case 'DELETE':
-      try {
-        // Prevent self-deletion
-        if (isSelf) {
-          return res.status(400).json(formatResponse(false, null, 'Cannot delete your own account'));
+      // Check if email already exists for another user
+      if (email && email !== user.email) {
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+          return res.status(400).json({ message: 'Email already in use' });
         }
-        
-        // Only allow admin to delete users
-        if (session.user.role !== 'admin') {
-          return res.status(403).json(formatResponse(false, null, 'Only administrators can delete users'));
-        }
-        
-        // Delete user
-        const deletedUser = await User.findByIdAndDelete(id);
-        
-        if (!deletedUser) {
-          return res.status(404).json(formatResponse(false, null, 'User not found'));
-        }
-        
-        return res.status(200).json(formatResponse(true, { id }));
-      } catch (error) {
-        return handleApiError(error, res);
       }
       
-    default:
-      return res.status(405).json(formatResponse(false, null, `Method ${method} Not Allowed`));
+      // Update fields
+      if (name) user.name = name;
+      if (email) user.email = email;
+      if (role) user.role = role;
+      if (status) user.status = status;
+      if (department) user.department = department;
+      if (contactNumber) user.contactNumber = contactNumber;
+      
+      // Only allow admin to set custom permissions that override role-based ones
+      if (permissions && req.user.role === 'admin') {
+        user.permissions = {
+          ...user.permissions,
+          ...permissions
+        };
+      }
+      
+      // Save the user
+      await user.save();
+      
+      // Return the updated user without password
+      const updatedUser = user.toObject();
+      delete updatedUser.password;
+      
+      return res.status(200).json(updatedUser);
+    }
+    
+    // DELETE - Delete a user
+    if (req.method === 'DELETE') {
+      // Only allow admins to delete users
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Only administrators can delete users' });
+      }
+      
+      const deletedUser = await User.findByIdAndDelete(id);
+      
+      if (!deletedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      return res.status(200).json({ message: 'User deleted successfully' });
+    }
+    
+    // For any other HTTP method
+    return res.status(405).json({ message: 'Method not allowed' });
+    
+  } catch (error) {
+    console.error(`Error processing user ${id}:`, error);
+    
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    
+    if (error.name === 'ValidationError') {
+      const errors = Object.keys(error.errors).reduce((acc, key) => {
+        acc[key] = error.errors[key].message;
+        return acc;
+      }, {});
+      return res.status(400).json({ message: 'Validation error', errors });
+    }
+    
+    return res.status(500).json({ message: 'Server error' });
   }
 }
+
+// Protect this endpoint with authentication middleware
+export default withAuth(handler, {
+  requiredPermission: 'canManageUsers',
+});
