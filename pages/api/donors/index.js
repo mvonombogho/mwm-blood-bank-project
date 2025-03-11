@@ -1,58 +1,91 @@
-import dbConnect from '@/lib/mongodb';
-import Donor from '@/models/Donor';
+import dbConnect from '../../../lib/mongodb';
+import Donor from '../../../models/Donor';
+import withAuth from '../../../lib/middlewares/withAuth';
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const { method } = req;
-
+  
   await dbConnect();
 
   switch (method) {
-    // GET all donors
     case 'GET':
       try {
-        const donors = await Donor.find({});
-        res.status(200).json(donors);
+        // Parse query parameters
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 10;
+        const skip = (page - 1) * limit;
+        
+        // Build filter object
+        const filter = {};
+        
+        if (req.query.search) {
+          const searchRegex = new RegExp(req.query.search, 'i');
+          filter.$or = [
+            { firstName: searchRegex },
+            { lastName: searchRegex },
+            { email: searchRegex },
+            { phone: searchRegex },
+            { donorId: searchRegex }
+          ];
+        }
+        
+        if (req.query.bloodType) {
+          filter.bloodType = req.query.bloodType;
+        }
+        
+        if (req.query.status) {
+          filter.status = req.query.status;
+        }
+        
+        // Execute query with pagination
+        const donors = await Donor.find(filter)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit);
+        
+        // Get total count for pagination
+        const total = await Donor.countDocuments(filter);
+        
+        res.status(200).json({
+          donors,
+          pagination: {
+            total,
+            page,
+            limit,
+            pages: Math.ceil(total / limit)
+          }
+        });
       } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        console.error('Error fetching donors:', error);
+        res.status(500).json({ message: 'Error fetching donors', error: error.message });
       }
       break;
-
-    // POST a new donor
+      
     case 'POST':
       try {
-        // Check for existing donor with same email or donorId
-        if (req.body.email) {
-          const existingDonorEmail = await Donor.findOne({ email: req.body.email });
-          if (existingDonorEmail) {
-            return res.status(400).json({ success: false, error: 'A donor with this email already exists' });
-          }
-        }
-
-        if (req.body.donorId) {
-          const existingDonorId = await Donor.findOne({ donorId: req.body.donorId });
-          if (existingDonorId) {
-            return res.status(400).json({ success: false, error: 'A donor with this ID already exists' });
-          }
-        }
-
-        // Generate a unique donorId if not provided
-        if (!req.body.donorId) {
-          const date = new Date();
-          const year = date.getFullYear().toString().slice(2);
-          const month = (date.getMonth() + 1).toString().padStart(2, '0');
-          const count = await Donor.countDocuments({}) + 1;
-          req.body.donorId = `D${year}${month}${count.toString().padStart(4, '0')}`;
-        }
-
+        // Create a new donor
         const donor = await Donor.create(req.body);
-        res.status(201).json({ success: true, data: donor });
+        res.status(201).json(donor);
       } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        console.error('Error creating donor:', error);
+        
+        if (error.name === 'ValidationError') {
+          const errors = Object.keys(error.errors).reduce((acc, key) => {
+            acc[key] = error.errors[key].message;
+            return acc;
+          }, {});
+          
+          return res.status(400).json({ message: 'Validation error', errors });
+        }
+        
+        res.status(500).json({ message: 'Error creating donor', error: error.message });
       }
       break;
-
+      
     default:
-      res.status(405).json({ success: false, error: `Method ${method} Not Allowed` });
-      break;
+      res.setHeader('Allow', ['GET', 'POST']);
+      res.status(405).json({ message: `Method ${method} Not Allowed` });
   }
 }
+
+export default withAuth(handler, { requiredPermission: 'canManageDonors' });
