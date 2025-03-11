@@ -1,252 +1,265 @@
-import {
-  Box,
-  Heading,
-  Container,
-  Text,
-  Button,
-  Stack,
-  Icon,
-  useColorModeValue,
-  SimpleGrid,
-  Flex,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  Badge
-} from '@chakra-ui/react';
-import { CheckIcon } from '@chakra-ui/icons';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Text, Stack, Button, Card, CardBody, CardHeader, useColorModeValue, Flex, Icon, Badge, Progress } from '@chakra-ui/react';
+import { FaVial, FaUserInjured, FaUser, FaThermometerHalf, FaTint, FaCalendarDay, FaExclamationTriangle } from 'react-icons/fa';
+import Layout from '../components/Layout';
+import AuthGuard from '../components/auth/AuthGuard';
+import NextLink from 'next/link';
+import axios from 'axios';
+import { useSession } from 'next-auth/react';
 
-export default function HomePage() {
-  const [stats, setStats] = useState({
-    donors: 0,
-    recipients: 0,
-    bloodUnits: {
-      total: 0,
-      available: 0,
-      byType: {}
-    }
-  });
+export default function Home() {
+  const { data: session } = useSession();
+  const [dashboardData, setDashboardData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   
-  const router = useRouter();
-
-  // In a real implementation, this would fetch data from the API
-  // For now we'll use mock data
+  const cardBg = useColorModeValue('white', 'gray.800');
+  
+  // Fetch dashboard data
   useEffect(() => {
-    setStats({
-      donors: 124,
-      recipients: 87,
-      bloodUnits: {
-        total: 312,
-        available: 245,
-        byType: {
-          'A+': 67,
-          'A-': 18,
-          'B+': 42,
-          'B-': 14,
-          'AB+': 12,
-          'AB-': 7,
-          'O+': 75,
-          'O-': 28
-        }
+    const fetchData = async () => {
+      try {
+        // This would be replaced with actual API calls in a real app
+        // Example: const response = await axios.get('/api/dashboard');
+        
+        // For now, let's use mock data
+        const mockData = {
+          inventory: {
+            totalUnits: 253,
+            availableUnits: 189,
+            expiringUnits: 12,
+            criticalTypes: ['O-', 'AB-']
+          },
+          bloodTypes: {
+            'A+': { total: 45, available: 38 },
+            'A-': { total: 22, available: 15 },
+            'B+': { total: 38, available: 30 },
+            'B-': { total: 15, available: 12 },
+            'AB+': { total: 12, available: 9 },
+            'AB-': { total: 8, available: 4 },
+            'O+': { total: 65, available: 53 },
+            'O-': { total: 48, available: 28 }
+          },
+          storage: {
+            units: 4,
+            alerts: 1,
+            maintenance: 0
+          },
+          recipients: {
+            total: 142,
+            activeRequests: 8
+          },
+          donors: {
+            total: 527,
+            thisMonth: 48
+          }
+        };
+        
+        setDashboardData(mockData);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setIsLoading(false);
       }
-    });
+    };
+    
+    fetchData();
   }, []);
-
-  return (
-    <Box>
-      {/* Hero section */}
-      <Container maxW={'3xl'}>
-        <Stack
-          as={Box}
-          textAlign={'center'}
-          spacing={{ base: 8, md: 14 }}
-          py={{ base: 20, md: 36 }}>
-          <Heading
-            fontWeight={600}
-            fontSize={{ base: '2xl', sm: '4xl', md: '6xl' }}
-            lineHeight={'110%'}>
-            Blood Bank <br />
-            <Text as={'span'} color={'blue.400'}>
-              Management System
-            </Text>
-          </Heading>
-          <Text color={'gray.500'}>
-            A comprehensive system designed to help blood banks manage donations and distributions effectively. 
-            Track donors, blood inventory, and recipients in a simple and organized way.
-          </Text>
-          <Stack
-            direction={'column'}
-            spacing={3}
-            align={'center'}
-            alignSelf={'center'}
-            position={'relative'}>
-            <Button
-              colorScheme={'blue'}
-              bg={'blue.400'}
-              rounded={'full'}
-              px={6}
-              _hover={{
-                bg: 'blue.500',
-              }}
-              onClick={() => router.push('/recipients')}>
-              Manage Recipients
-            </Button>
-            <Button 
-              variant={'link'} 
-              colorScheme={'blue'} 
-              size={'sm'}
-              onClick={() => router.push('/donors')}>
-              View Donors
-            </Button>
-          </Stack>
+  
+  // Define what permissions see which sections
+  const canSeeInventory = !session || session.user.permissions.canManageInventory;
+  const canSeeDonors = !session || session.user.permissions.canManageDonors;
+  const canSeeRecipients = !session || session.user.permissions.canManageRecipients;
+  
+  const StatCard = ({ title, value, icon, color, subtext, link }) => {
+    const Icon = icon;
+    
+    return (
+      <Card bg={cardBg} shadow="md">
+        <CardBody>
+          <Flex justify="space-between">
+            <Box>
+              <StatLabel color="gray.500">{title}</StatLabel>
+              <StatNumber fontSize="3xl" fontWeight="medium" color={`${color}.500`}>
+                {value}
+              </StatNumber>
+              {subtext && (
+                <StatHelpText>
+                  {subtext}
+                </StatHelpText>
+              )}
+            </Box>
+            <Flex
+              w={12}
+              h={12}
+              align="center"
+              justify="center"
+              rounded="full"
+              bg={`${color}.100`}
+            >
+              <Icon color={`${color}.500`} size="24px" />
+            </Flex>
+          </Flex>
+          
+          {link && (
+            <NextLink href={link} passHref>
+              <Button as="a" size="sm" variant="ghost" colorScheme={color} mt={4}>
+                View Details
+              </Button>
+            </NextLink>
+          )}
+        </CardBody>
+      </Card>
+    );
+  };
+  
+  const BloodTypeCard = ({ data }) => (
+    <Card bg={cardBg} shadow="md" borderRadius="lg" overflow="hidden">
+      <CardHeader pb={0}>
+        <Heading as="h3" size="md" mb={2}>
+          Blood Inventory Levels
+        </Heading>
+      </CardHeader>
+      <CardBody>
+        <Stack spacing={4}>
+          {Object.entries(data?.bloodTypes || {}).map(([type, stats]) => (
+            <Box key={type}>
+              <Flex justify="space-between" mb={1}>
+                <HStack>
+                  <Badge colorScheme="red">{type}</Badge>
+                  <Text fontWeight="medium">{stats.available} / {stats.total} units</Text>
+                </HStack>
+                <Text fontSize="sm">
+                  {Math.round((stats.available / stats.total) * 100)}%
+                </Text>
+              </Flex>
+              <Progress 
+                value={(stats.available / stats.total) * 100} 
+                size="sm" 
+                colorScheme={(stats.available / stats.total) < 0.3 ? "red" : 
+                             (stats.available / stats.total) < 0.6 ? "yellow" : "green"} 
+                borderRadius="full"
+              />
+            </Box>
+          ))}
         </Stack>
-      </Container>
-
-      {/* Stats section */}
-      <Box bg={useColorModeValue('gray.50', 'gray.900')} p={10}>
-        <Container maxW={'7xl'}>
-          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={{ base: 5, lg: 8 }}>
-            <StatsCard
-              title={'Donors'}
-              stat={stats.donors}
-              helpText={'Active blood donors'}
-              onClick={() => router.push('/donors')}
-            />
-            <StatsCard
-              title={'Recipients'}
-              stat={stats.recipients}
-              helpText={'Registered recipients'}
-              onClick={() => router.push('/recipients')}
-            />
-            <StatsCard
-              title={'Blood Units'}
-              stat={stats.bloodUnits.available}
-              helpText={`of ${stats.bloodUnits.total} total units`}
-              onClick={() => router.push('/inventory/blood-units')}
-            />
-          </SimpleGrid>
-        </Container>
-      </Box>
-
-      {/* Blood Inventory section */}
-      <Box p={10}>
-        <Container maxW={'7xl'}>
-          <Heading as="h2" size="xl" mb={6} textAlign="center">
-            Available Blood Inventory
+      </CardBody>
+    </Card>
+  );
+  
+  const CriticalAlert = ({ data }) => {
+    if (!data || !data.criticalTypes || data.criticalTypes.length === 0) return null;
+    
+    return (
+      <Card bg="red.50" borderLeft="4px" borderColor="red.500" shadow="md">
+        <CardBody>
+          <Flex align="center">
+            <Icon as={FaExclamationTriangle} color="red.500" boxSize={6} mr={4} />
+            <Box>
+              <Heading as="h4" size="sm" mb={1}>
+                Critical Blood Levels
+              </Heading>
+              <Text>
+                Blood types {data.criticalTypes.join(', ')} are at critical levels. 
+                <NextLink href="/inventory" passHref>
+                  <Button as="a" size="sm" colorScheme="red" variant="link" ml={1}>
+                    View inventory
+                  </Button>
+                </NextLink>
+              </Text>
+            </Box>
+          </Flex>
+        </CardBody>
+      </Card>
+    );
+  };
+  
+  return (
+    <AuthGuard>
+      <Layout title="Dashboard">
+        <Box maxW="7xl" mx="auto">
+          <Heading as="h1" size="xl" mb={6}>
+            Blood Bank Dashboard
           </Heading>
-          <SimpleGrid columns={{ base: 2, md: 4, lg: 8 }} spacing={5}>
-            {Object.entries(stats.bloodUnits.byType).map(([type, count]) => (
-              <Box
-                key={type}
-                bg={useColorModeValue('white', 'gray.800')}
-                boxShadow={'lg'}
-                rounded={'lg'}
-                p={6}
-                textAlign={'center'}
-                borderWidth={1}
-                borderColor={type.includes('-') ? 'purple.100' : 'red.100'}
-              >
-                <Badge
-                  px={3}
-                  py={1}
-                  mb={3}
-                  fontSize="xl"
-                  fontWeight="bold"
-                  colorScheme={type.includes('-') ? 'purple' : 'red'}
-                  borderRadius="full"
-                >
-                  {type}
-                </Badge>
-                <Text fontSize="4xl" fontWeight="bold">
-                  {count}
-                </Text>
-                <Text fontSize="sm" color="gray.500">
-                  units available
-                </Text>
-              </Box>
-            ))}
+          
+          {!isLoading && dashboardData?.inventory?.criticalTypes?.length > 0 && (
+            <Box mb={6}>
+              <CriticalAlert data={dashboardData.inventory} />
+            </Box>
+          )}
+          
+          <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
+            {canSeeInventory && (
+              <StatCard
+                title="Blood Units"
+                value={dashboardData?.inventory?.totalUnits || 0}
+                icon={FaVial}
+                color="red"
+                subtext={`${dashboardData?.inventory?.availableUnits || 0} available`}
+                link="/inventory/blood-units"
+              />
+            )}
+            
+            {canSeeInventory && (
+              <StatCard
+                title="Storage Units"
+                value={dashboardData?.storage?.units || 0}
+                icon={FaThermometerHalf}
+                color="blue"
+                subtext={dashboardData?.storage?.alerts > 0 ? `${dashboardData.storage.alerts} alerts` : 'No alerts'}
+                link="/inventory/storage"
+              />
+            )}
+            
+            {canSeeDonors && (
+              <StatCard
+                title="Total Donors"
+                value={dashboardData?.donors?.total || 0}
+                icon={FaUser}
+                color="green"
+                subtext={`${dashboardData?.donors?.thisMonth || 0} this month`}
+                link="/donors"
+              />
+            )}
+            
+            {canSeeRecipients && (
+              <StatCard
+                title="Recipients"
+                value={dashboardData?.recipients?.total || 0}
+                icon={FaUserInjured}
+                color="purple"
+                subtext={`${dashboardData?.recipients?.activeRequests || 0} active requests`}
+                link="/recipients"
+              />
+            )}
           </SimpleGrid>
-        </Container>
-      </Box>
-
-      {/* Features section */}
-      <Box bg={useColorModeValue('gray.50', 'gray.900')} p={10}>
-        <Container maxW={'7xl'}>
-          <Heading as="h2" size="xl" mb={6} textAlign="center">
-            System Features
-          </Heading>
-          <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={10}>
-            <Feature
-              title={'Donor Management'}
-              text={'Track donor information, donation history, and eligibility status.'}
-            />
-            <Feature
-              title={'Inventory Control'}
-              text={'Monitor blood units, expiry dates, and storage conditions.'}
-            />
-            <Feature
-              title={'Recipient Records'}
-              text={'Manage recipient data, transfusion history, and blood requests.'}
-            />
-            <Feature
-              title={'Reporting'}
-              text={'Generate insights with comprehensive reports and analytics.'}
-            />
+          
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+            {canSeeInventory && (
+              <BloodTypeCard data={dashboardData} />
+            )}
+            
+            {canSeeInventory && (
+              <Card bg={cardBg} shadow="md" borderRadius="lg" overflow="hidden">
+                <CardHeader pb={0}>
+                  <Heading as="h3" size="md" mb={2}>
+                    Expiring Units
+                  </Heading>
+                </CardHeader>
+                <CardBody>
+                  <Text mb={4}>
+                    {dashboardData?.inventory?.expiringUnits || 0} units expiring in the next 7 days
+                  </Text>
+                  <NextLink href="/inventory/expiry-tracking" passHref>
+                    <Button as="a" colorScheme="orange" size="sm">
+                      View Expiry Tracking
+                    </Button>
+                  </NextLink>
+                </CardBody>
+              </Card>
+            )}
           </SimpleGrid>
-        </Container>
-      </Box>
-
-    </Box>
+        </Box>
+      </Layout>
+    </AuthGuard>
   );
 }
-
-const StatsCard = ({ title, stat, helpText, onClick }) => {
-  return (
-    <Stat
-      px={{ base: 4, md: 8 }}
-      py={'5'}
-      shadow={'xl'}
-      border={'1px solid'}
-      borderColor={useColorModeValue('gray.800', 'gray.500')}
-      rounded={'lg'}
-      onClick={onClick}
-      cursor="pointer"
-      _hover={{
-        transform: 'translateY(-5px)',
-        boxShadow: 'xl',
-        transition: 'all 0.2s ease-in-out'
-      }}
-    >
-      <StatLabel fontWeight={'medium'} isTruncated>
-        {title}
-      </StatLabel>
-      <StatNumber fontSize={'2xl'} fontWeight={'medium'}>
-        {stat}
-      </StatNumber>
-      <StatHelpText>{helpText}</StatHelpText>
-    </Stat>
-  );
-};
-
-const Feature = ({ title, text }) => {
-  return (
-    <Stack>
-      <Flex
-        w={16}
-        h={16}
-        align={'center'}
-        justify={'center'}
-        color={'white'}
-        rounded={'full'}
-        bg={'blue.500'}
-        mb={1}>
-        <Icon as={CheckIcon} w={10} h={10} />
-      </Flex>
-      <Text fontWeight={600}>{title}</Text>
-      <Text color={'gray.600'}>{text}</Text>
-    </Stack>
-  );
-};
