@@ -140,4 +140,7 @@ const LoginPage = () => {
   );
 };
 
+// Mark this as an auth page to avoid wrapping it in the MainLayout
+LoginPage.authPage = true;
+
 export default LoginPage;
