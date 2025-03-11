@@ -12,13 +12,15 @@ This system helps blood banks manage their donations and distributions effective
 - Blood Inventory Management
 - Recipient Management
 - Reports Generation
-- Authentication System
+- Storage Condition Monitoring
+- Expiry Tracking
 
 ## Tech Stack
 
 - Next.js
 - MongoDB
 - Chakra UI
+- Chart.js
 
 ## Project Status
 
@@ -41,9 +43,12 @@ This system helps blood banks manage their donations and distributions effective
    * `/api/donors/status` - Donor health status tracking
 * **Inventory Management**:
    * `/api/inventory/blood-units` - Blood inventory CRUD operations
+   * `/api/inventory/blood-units/stats` - Inventory statistics
    * `/api/inventory/storage` - Storage management
    * `/api/inventory/storage/temperature` - Temperature tracking
    * `/api/inventory/storage/maintenance` - Maintenance management
+   * `/api/inventory/expiry-tracking` - Blood unit expiry tracking
+   * `/api/inventory/reports/generate` - Report generation
 * **Contact Management**:
    * `/api/donors/contact` - Communication preferences and history
 * **Recipient Management**:
@@ -52,27 +57,65 @@ This system helps blood banks manage their donations and distributions effective
    * `/api/recipients/transfusions` - Transfusion records
    
 3. Frontend Components
+* **Layout and Navigation**:
+   * Main layout with sidebar navigation
+   * Mobile-responsive design
 * **Inventory Management**:
    * Inventory dashboard with overview
-   * InventoryList component for managing blood units
-   * AddBloodUnit form component
-   * StorageManagement component for temperature tracking
-* **Recipient Management** (partial):
+   * Blood Units Inventory Dashboard
+   * Blood Units List component
+   * Add Blood Unit modal form
+   * Storage Management Interface
+   * Storage Temperature Monitoring
+   * Storage Units List component
+   * Add Storage Unit modal form
+   * Inventory Alerts system
+* **Expiry Tracking**:
+   * Expiry Calendar View
+   * Expiry Action Cards
+   * Expiry Reports
+* **Reports Generation**:
+   * Report Generator interface
+   * Blood Supply Trends
+   * Export functionality
+   * Storage Conditions Report
+* **Recipient Management**:
    * Main recipient dashboard page
    
 4. System Infrastructure
 * MongoDB connection utilities
+* API utilities for error handling and response formatting
+* Inventory helper utilities
 * Environment variable configuration
 
-### In Progress Components
-1. Frontend Components
-* **Recipient Management** (missing components):
-   * RecipientList component
-   * AddRecipientForm component
-   * BloodRequestsView component
-   * TransfusionRecordView component
-2. Reports Generation System
-3. Authentication System
+### Features & Functionality
+
+#### Blood Inventory Management
+- Complete tracking of blood units from donation to transfusion
+- Detailed metadata including blood type, collection date, expiration date
+- Status tracking (Available, Reserved, Quarantined, Transfused, Discarded, Expired)
+- Storage location management
+- Comprehensive filtering and search capabilities
+
+#### Storage Condition Monitoring
+- Temperature tracking for storage units
+- Maintenance scheduling and history
+- Alarm system for temperature fluctuations
+- Historical temperature data visualization
+
+#### Expiry Tracking
+- Calendar view of upcoming expirations
+- Prioritized expiry lists (Critical, Warning, Caution)
+- Blood type-specific expiry analytics
+- Wastage reduction recommendations
+
+#### Reports & Analytics
+- Inventory summary reports
+- Expiry analysis reports
+- Historical trends analysis
+- Storage conditions reporting
+- Critical shortage notifications
+- Customizable report generation
 
 ## Getting Started
 
@@ -100,19 +143,72 @@ NEXT_PUBLIC_API_URL=http://localhost:3000/api
 npm run dev
 ```
 
+### Using the System
+
+1. **Blood Inventory Management**:
+   - Navigate to Inventory → Blood Units to view all blood units
+   - Use the Add Blood Unit button to add new donations
+   - Filter and search by various criteria
+   - Change blood unit status as needed
+
+2. **Storage Management**:
+   - Navigate to Inventory → Storage to access storage monitoring
+   - View temperature charts and history
+   - Record maintenance activities
+   - Track alarms and alerts
+
+3. **Expiry Tracking**:
+   - Navigate to Inventory → Expiry Tracking
+   - View the calendar of upcoming expirations
+   - Take action on units expiring soon
+   - Generate expiry reports
+
+4. **Reports**:
+   - Navigate to Inventory → Reports
+   - Select report type, time range, and blood types
+   - View visualizations and data tables
+   - Export reports in various formats
+
 ## Project Structure
 
 ```
 ├── components/          # React components
+│   ├── inventory/       # Inventory management components
+│   └── ...              # Other component categories
 ├── models/              # MongoDB schema models
 ├── pages/               # Next.js pages
 │   ├── api/             # API routes
-│   └── ...              # UI pages
+│   ├── inventory/       # Inventory management pages
+│   └── ...              # Other UI pages
 ├── public/              # Static assets
-├── styles/              # CSS styles
 ├── lib/                 # Utility functions
-└── ...                  # Other configuration files
+│   ├── dbConnect.js     # MongoDB connection utility
+│   ├── apiUtils.js      # API response utilities
+│   └── inventoryUtils.js # Inventory helper functions
+└── ...                  # Configuration files
 ```
+
+## Future Enhancements
+
+1. **Authentication System**:
+   - User roles and permissions
+   - Login/logout functionality
+   - Security enhancements
+
+2. **Donor Portal**:
+   - Online appointment scheduling
+   - Donation history viewing
+   - Health status checking
+
+3. **Mobile App Integration**:
+   - Mobile-friendly interfaces
+   - Push notifications for critical alerts
+   - Barcode scanning for blood units
+
+4. **Advanced Analytics**:
+   - Predictive modeling for blood demand
+   - Geographic analysis of donors/recipients
+   - Machine learning integration for optimizing blood distribution
 
 ## Author
 
