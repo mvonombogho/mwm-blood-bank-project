@@ -14,11 +14,13 @@ This system helps blood banks manage their donations and distributions effective
 - Reports Generation
 - Storage Condition Monitoring
 - Expiry Tracking
+- User Authentication & Role-based Access Control
 
 ## Tech Stack
 
 - Next.js
 - MongoDB
+- NextAuth.js
 - Chakra UI
 - Chart.js
 
@@ -37,6 +39,8 @@ This system helps blood banks manage their donations and distributions effective
    * `Contact.js` - Contact preferences and communication history
 * **Recipient Models**:
    * `Recipient.js` - Recipient information and medical history
+* **Authentication Models**:
+   * `User.js` - User management with roles and permissions
    
 2. API Routes
 * **Donor Management**:
@@ -55,11 +59,27 @@ This system helps blood banks manage their donations and distributions effective
    * `/api/recipients` - Recipient CRUD operations
    * `/api/recipients/blood-requests` - Blood request management
    * `/api/recipients/transfusions` - Transfusion records
+* **Authentication & User Management**:
+   * `/api/auth/[...nextauth]` - NextAuth.js authentication endpoints
+   * `/api/users` - User management CRUD operations
+   * `/api/users/register` - New user registration
+   * `/api/users/change-password` - Password management
    
 3. Frontend Components
 * **Layout and Navigation**:
    * Main layout with sidebar navigation
    * Mobile-responsive design
+   * Authentication-aware menu system
+* **Authentication UI**:
+   * Login page
+   * User registration
+   * Forgot password flow
+   * Auth protection for routes
+   * Role-based component rendering
+* **Admin Interface**:
+   * User management dashboard
+   * Role and permission management
+   * System settings
 * **Inventory Management**:
    * Inventory dashboard with overview
    * Blood Units Inventory Dashboard
@@ -86,9 +106,18 @@ This system helps blood banks manage their donations and distributions effective
 * MongoDB connection utilities
 * API utilities for error handling and response formatting
 * Inventory helper utilities
+* Authentication protection middleware
 * Environment variable configuration
 
 ### Features & Functionality
+
+#### Authentication & Authorization System
+- Complete user authentication with NextAuth.js
+- Role-based access control (Admin, Manager, Technician, Donor Coordinator, Staff)
+- Fine-grained permission system for detailed access control
+- Protected routes and API endpoints
+- User management interface for administrators
+- Password security with bcrypt hashing
 
 #### Blood Inventory Management
 - Complete tracking of blood units from donation to transfusion
@@ -137,33 +166,53 @@ npm install
 # Set up environment variables
 # Create a .env.local file with the following variables:
 MONGODB_URI=your_mongodb_connection_string
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your_nextauth_secret # Generate a secure random string
 NEXT_PUBLIC_API_URL=http://localhost:3000/api
 
 # Run the development server
 npm run dev
 ```
 
+### Creating the First Admin User
+
+To set up the first administrator account, you can use the following approach:
+
+1. Start the development server
+2. Visit `/auth/register?isAdmin=true` (this special URL bypasses auth checks for the first user only)
+3. Create your admin account with full permissions
+4. After the first admin is created, all subsequent user management should be done through the admin interface
+
 ### Using the System
 
-1. **Blood Inventory Management**:
+1. **Authentication**:
+   - Login at `/auth/login`
+   - Your access to various features will depend on your role and permissions
+
+2. **User Management** (Admin only):
+   - Navigate to Admin → Users
+   - Add, edit, or deactivate user accounts
+   - Assign roles and customize permissions
+
+3. **Blood Inventory Management**:
    - Navigate to Inventory → Blood Units to view all blood units
    - Use the Add Blood Unit button to add new donations
    - Filter and search by various criteria
    - Change blood unit status as needed
 
-2. **Storage Management**:
+4. **Storage Management**:
    - Navigate to Inventory → Storage to access storage monitoring
    - View temperature charts and history
    - Record maintenance activities
    - Track alarms and alerts
 
-3. **Expiry Tracking**:
+5. **Expiry Tracking**:
    - Navigate to Inventory → Expiry Tracking
    - View the calendar of upcoming expirations
    - Take action on units expiring soon
    - Generate expiry reports
 
-4. **Reports**:
+6. **Reports**:
    - Navigate to Inventory → Reports
    - Select report type, time range, and blood types
    - View visualizations and data tables
@@ -173,11 +222,19 @@ npm run dev
 
 ```
 ├── components/          # React components
+│   ├── auth/            # Authentication components
 │   ├── inventory/       # Inventory management components
 │   └── ...              # Other component categories
 ├── models/              # MongoDB schema models
+│   ├── User.js          # User model with role & permissions
+│   └── ...              # Other models
 ├── pages/               # Next.js pages
+│   ├── admin/           # Admin interface pages
 │   ├── api/             # API routes
+│   │   ├── auth/        # Authentication API routes
+│   │   ├── users/       # User management API routes
+│   │   └── ...          # Other API routes
+│   ├── auth/            # Authentication pages (login, register)
 │   ├── inventory/       # Inventory management pages
 │   └── ...              # Other UI pages
 ├── public/              # Static assets
@@ -190,10 +247,11 @@ npm run dev
 
 ## Future Enhancements
 
-1. **Authentication System**:
-   - User roles and permissions
-   - Login/logout functionality
-   - Security enhancements
+1. **Enhanced Authentication**:
+   - Two-factor authentication
+   - Single sign-on integration
+   - Password policies
+   - Activity logging and audit trails
 
 2. **Donor Portal**:
    - Online appointment scheduling
