@@ -4,7 +4,7 @@ import {
   Badge, Flex, HStack, useColorModeValue, Spinner,
   ButtonGroup, Button, Select, SimpleGrid, Stat, Icon,
   StatLabel, StatNumber, StatHelpText, Card, CardBody,
-  CardHeader, Tooltip
+  CardHeader, Tooltip, Tabs, TabList, TabPanels, Tab, TabPanel
 } from '@chakra-ui/react';
 import { FaThermometerHalf, FaExclamationTriangle, FaTools, FaChartLine } from 'react-icons/fa';
 import { Line } from 'react-chartjs-2';
@@ -358,6 +358,118 @@ const StorageConditionsReport = () => {
               colorScheme="purple"
             />
           </SimpleGrid>
+          
+          <Card bg={cardBg} mb={6} overflow="hidden">
+            <CardHeader pb={0}>
+              <Heading size="md">Temperature Trends</Heading>
+            </CardHeader>
+            <CardBody>
+              <Box height="300px">
+                <Line data={getChartData()} options={chartOptions} />
+              </Box>
+            </CardBody>
+          </Card>
+          
+          <Tabs colorScheme="blue" mt={6}>
+            <TabList>
+              <Tab>Alarm Records</Tab>
+              <Tab>Maintenance History</Tab>
+            </TabList>
+            
+            <TabPanels>
+              <TabPanel p={0} pt={4}>
+                <Box bg={tableBg} shadow="md" borderRadius="lg" overflow="hidden">
+                  <Table variant="simple" size="sm">
+                    <Thead>
+                      <Tr>
+                        <Th>ID</Th>
+                        <Th>Storage Unit</Th>
+                        <Th>Type</Th>
+                        <Th>Severity</Th>
+                        <Th>Date</Th>
+                        <Th>Time</Th>
+                        <Th>Status</Th>
+                        <Th>Duration</Th>
+                      </Tr>
+                    </Thead>
+                    <Tbody>
+                      {storageData.alarmRecords.length > 0 ? (
+                        storageData.alarmRecords.map((alarm) => (
+                          <Tr key={alarm.id}>
+                            <Td>{alarm.id}</Td>
+                            <Td>{alarm.unitName}</Td>
+                            <Td>{alarm.type}</Td>
+                            <Td>
+                              <Badge colorScheme={getSeverityColor(alarm.severity)}>
+                                {alarm.severity}
+                              </Badge>
+                            </Td>
+                            <Td>{alarm.date}</Td>
+                            <Td>{alarm.time}</Td>
+                            <Td>
+                              <Badge colorScheme={alarm.status === 'Resolved' ? 'green' : 'red'}>
+                                {alarm.status}
+                              </Badge>
+                            </Td>
+                            <Td>{alarm.duration}</Td>
+                          </Tr>
+                        ))
+                      ) : (
+                        <Tr>
+                          <Td colSpan={8} textAlign="center">
+                            No alarm records found for the selected period/unit.
+                          </Td>
+                        </Tr>
+                      )}
+                    </Tbody>
+                  </Table>
+                </Box>
+              </TabPanel>
+              
+              <TabPanel p={0} pt={4}>
+                <Box bg={tableBg} shadow="md" borderRadius="lg" overflow="hidden">
+                  <Table variant="simple" size="sm">
+                    <Thead>
+                      <Tr>
+                        <Th>ID</Th>
+                        <Th>Storage Unit</Th>
+                        <Th>Type</Th>
+                        <Th>Date</Th>
+                        <Th>Technician</Th>
+                        <Th>Status</Th>
+                        <Th>Notes</Th>
+                      </Tr>
+                    </Thead>
+                    <Tbody>
+                      {storageData.maintenanceRecords.length > 0 ? (
+                        storageData.maintenanceRecords.map((record) => (
+                          <Tr key={record.id}>
+                            <Td>{record.id}</Td>
+                            <Td>{record.unitName}</Td>
+                            <Td>{record.type}</Td>
+                            <Td>{record.date}</Td>
+                            <Td>{record.technician}</Td>
+                            <Td>
+                              <Badge colorScheme="green">
+                                {record.status}
+                              </Badge>
+                            </Td>
+                            <Td>{record.notes}</Td>
+                          </Tr>
+                        ))
+                      ) : (
+                        <Tr>
+                          <Td colSpan={7} textAlign="center">
+                            No maintenance records found for the selected period/unit.
+                          </Td>
+                        </Tr>
+                      )}
+                    </Tbody>
+                  </Table>
+                </Box>
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
         </Box>
       )}
     </Box>
