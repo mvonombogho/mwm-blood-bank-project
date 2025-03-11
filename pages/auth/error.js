@@ -1,87 +1,112 @@
+import { useRouter } from 'next/router';
 import {
   Box,
   Heading,
   Text,
   Button,
-  Stack,
-  useColorModeValue,
+  Container,
+  VStack,
   Alert,
   AlertIcon,
-  Flex,
-  Image
+  AlertTitle,
+  AlertDescription,
 } from '@chakra-ui/react';
-import { useRouter } from 'next/router';
 import NextLink from 'next/link';
 
-export default function AuthErrorPage() {
+const AuthErrorPage = () => {
   const router = useRouter();
   const { error } = router.query;
   
-  // Format error message
-  const getErrorMessage = (errorCode) => {
-    switch (errorCode) {
-      case 'CredentialsSignin':
-        return 'Invalid email or password. Please try again.';
-      case 'CallbackRouteError':
-        return 'There was a problem with the login callback.';
-      case 'SessionRequired':
-        return 'You need to be signed in to access this page.';
-      case 'AccessDenied':
-        return 'You do not have permission to access this resource.';
-      case 'Verification':
-        return 'The token has expired or is invalid.';
-      default:
-        return 'An unexpected authentication error occurred.';
-    }
+  // Define all possible errors
+  const errors = {
+    default: {
+      title: 'Authentication Error',
+      message: 'An error occurred during authentication. Please try again.',
+    },
+    accessdenied: {
+      title: 'Access Denied',
+      message: 'You do not have permission to access this resource.',
+    },
+    verification: {
+      title: 'Verification Error',
+      message: 'The verification link is invalid or has expired.',
+    },
+    credentialssignin: {
+      title: 'Sign In Failed',
+      message: 'The email or password you entered is incorrect.',
+    },
+    sessionrequired: {
+      title: 'Authentication Required',
+      message: 'You must be signed in to access this page.',
+    },
+    accountnotlinked: {
+      title: 'Account Not Linked',
+      message: 'Your account is not linked to this authentication method.',
+    },
+    configuration: {
+      title: 'Server Error',
+      message: 'There is a problem with the server configuration. Please contact support.',
+    },
   };
   
-  const errorMessage = getErrorMessage(error);
+  // Get error details or use default
+  const errorDetails = error && errors[error.toLowerCase()] ? errors[error.toLowerCase()] : errors.default;
   
   return (
-    <Flex
-      minH="100vh"
-      align="center"
-      justify="center"
-      bg={useColorModeValue('gray.50', 'gray.800')}
-    >
-      <Stack spacing={8} mx="auto" maxW="lg" py={12} px={6}>
-        <Stack align="center">
-          <Image 
-            src="/logo.png" 
-            alt="Blood Bank Management System" 
-            h="80px" 
-            fallbackSrc="https://via.placeholder.com/150x80?text=Blood+Bank"
-          />
-          <Heading fontSize="2xl" textAlign="center" color="red.500">
-            Authentication Error
-          </Heading>
-        </Stack>
-        
-        <Box
-          rounded="lg"
-          bg={useColorModeValue('white', 'gray.700')}
-          boxShadow="lg"
-          p={8}
-          w={{ base: 'sm', md: 'md' }}
-        >
-          <Alert status="error" mb={6} borderRadius="md">
-            <AlertIcon />
-            {errorMessage}
+    <Container maxW="lg" py={{ base: '12', md: '24' }} px={{ base: '0', sm: '8' }}>
+      <Box
+        py={{ base: '8', sm: '8' }}
+        px={{ base: '4', sm: '10' }}
+        bg="white"
+        boxShadow={{ base: 'none', sm: 'md' }}
+        borderRadius={{ base: 'none', sm: 'xl' }}
+      >
+        <VStack spacing={6} align="stretch" textAlign="center">
+          <Alert
+            status="error"
+            variant="subtle"
+            flexDirection="column"
+            alignItems="center"
+            justifyContent="center"
+            textAlign="center"
+            height="200px"
+            borderRadius="md"
+          >
+            <AlertIcon boxSize="40px" mr={0} />
+            <AlertTitle mt={4} mb={1} fontSize="lg">
+              {errorDetails.title}
+            </AlertTitle>
+            <AlertDescription maxWidth="md">
+              {errorDetails.message}
+            </AlertDescription>
           </Alert>
           
-          <Stack spacing={6}>
-            <Text>
-              Please check your credentials and try again. If the problem persists, contact your system administrator.
-            </Text>
+          <Box>
+            <Heading size="md" mb={2}>What would you like to do next?</Heading>
             
             <NextLink href="/auth/login" passHref>
-              <Button as="a" colorScheme="red">
-                Return to Login
+              <Button as="a" colorScheme="blue" width="full" mb={3}>
+                Try signing in again
               </Button>
             </NextLink>
-          </Stack>
-        </Box>
-      </Stack>
-    </Flex>
+            
+            <NextLink href="/auth/forgot-password" passHref>
+              <Button as="a" variant="outline" width="full" mb={3}>
+                Reset your password
+              </Button>
+            </NextLink>
+            
+            <Text mt={4} fontSize="sm" color="gray.500">
+              If you continue to experience issues, please contact your system administrator.
+            </Text>
+          </Box>
+        </VStack>
+      </Box>
+    </Container>
   );
-}
+};
+
+// Mark this as an auth page to avoid wrapping it in the MainLayout
+AuthErrorPage.authPage = true;
+
+export default AuthErrorPage;

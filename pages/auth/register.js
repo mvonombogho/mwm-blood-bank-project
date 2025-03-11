@@ -3,305 +3,258 @@ import { useRouter } from 'next/router';
 import {
   Box,
   Button,
+  Container,
   FormControl,
   FormLabel,
   Heading,
   Input,
-  Stack,
-  Text,
-  useColorModeValue,
-  Alert,
-  AlertIcon,
-  FormErrorMessage,
   InputGroup,
   InputRightElement,
+  VStack,
+  Text,
+  useToast,
   IconButton,
-  Link,
   Select,
+  Checkbox,
+  Link,
   Flex,
-  Image,
-  HStack
 } from '@chakra-ui/react';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
 import NextLink from 'next/link';
 import axios from 'axios';
-import { getSession } from 'next-auth/react';
 
-export default function RegisterPage({ isAdmin = false }) {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    role: 'staff',
-    department: '',
-    contactNumber: ''
-  });
+const RegisterPage = () => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState('staff');
+  const [department, setDepartment] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
   
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prevData => ({
-      ...prevData,
-      [name]: value
-    }));
-  };
+  const router = useRouter();
+  const toast = useToast();
+  const { isAdmin } = router.query; // Allow first user to be admin
   
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setIsLoading(true);
     
-    // Validate passwords match
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      setIsLoading(false);
+    // Form validation
+    if (password !== confirmPassword) {
+      toast({
+        title: 'Passwords do not match',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
       return;
     }
     
+    if (password.length < 8) {
+      toast({
+        title: 'Password too short',
+        description: 'Password must be at least 8 characters long',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    if (!agreeToTerms) {
+      toast({
+        title: 'Terms agreement required',
+        description: 'You must agree to the terms and conditions',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
     try {
-      // Remove confirmPassword before sending
-      const { confirmPassword, ...userData } = formData;
+      // Create user
+      await axios.post('/api/users/register', {
+        name,
+        email,
+        password,
+        role: isAdmin ? 'admin' : role,
+        department,
+      });
       
-      // Send registration request
-      const response = await axios.post('/api/users/register', userData);
+      toast({
+        title: 'Registration successful',
+        description: 'You can now sign in with your credentials',
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
       
-      setSuccess(true);
-      setIsLoading(false);
-      
-      // Navigate after 2 seconds if admin, otherwise go to login
-      setTimeout(() => {
-        if (isAdmin) {
-          router.push('/admin/users');
-        } else {
-          router.push('/auth/login');
-        }
-      }, 2000);
+      router.push('/auth/login');
     } catch (error) {
-      console.error('Registration error:', error);
-      setError(
-        error.response?.data?.message ||
-        'Registration failed. Please try again.'
-      );
+      toast({
+        title: 'Registration failed',
+        description: error.response?.data?.message || 'Something went wrong',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
       setIsLoading(false);
     }
   };
-  
-  const togglePasswordVisibility = () => setShowPassword(!showPassword);
   
   return (
-    <Flex
-      minH="100vh"
-      align="center"
-      justify="center"
-      bg={useColorModeValue('gray.50', 'gray.800')}
-    >
-      <Stack spacing={8} mx="auto" maxW="lg" py={12} px={6}>
-        <Stack align="center">
-          <Image 
-            src="/logo.png" 
-            alt="Blood Bank Management System" 
-            h="80px" 
-            fallbackSrc="https://via.placeholder.com/150x80?text=Blood+Bank"
-          />
-          <Heading fontSize="2xl" textAlign="center" color="red.500">
-            {isAdmin ? 'Create New User Account' : 'Register New Account'}
-          </Heading>
-          <Text fontSize="md" color={useColorModeValue('gray.600', 'gray.400')}>
-            {isAdmin ? 'Add a new staff member to the system' : 'Join the Blood Bank Management System'}
-          </Text>
-        </Stack>
-        
+    <Container maxW="lg" py={{ base: '12', md: '24' }} px={{ base: '0', sm: '8' }}>
+      <Flex direction="column" alignItems="center" justifyContent="center">
         <Box
-          rounded="lg"
-          bg={useColorModeValue('white', 'gray.700')}
-          boxShadow="lg"
-          p={8}
-          w={{ base: 'sm', md: 'md' }}
+          py={{ base: '8', sm: '8' }}
+          px={{ base: '4', sm: '10' }}
+          bg="white"
+          boxShadow={{ base: 'none', sm: 'md' }}
+          borderRadius={{ base: 'none', sm: 'xl' }}
+          width="100%"
         >
-          {error && (
-            <Alert status="error" mb={4} borderRadius="md">
-              <AlertIcon />
-              {error}
-            </Alert>
-          )}
+          <Box textAlign="center" mb={8}>
+            <Heading size="lg" mb={2}>
+              {isAdmin ? 'Create Admin Account' : 'Register New User'}
+            </Heading>
+            <Text color="gray.600">
+              {isAdmin ? 'Set up the first administrator account' : 'Join the Blood Bank Management System'}
+            </Text>
+          </Box>
           
-          {success ? (
-            <Alert status="success" mb={4} borderRadius="md">
-              <AlertIcon />
-              Registration successful! {isAdmin ? 'User has been created.' : 'You can now login to your account.'}
-            </Alert>
-          ) : (
-            <form onSubmit={handleSubmit}>
-              <Stack spacing={4}>
-                <FormControl id="name" isRequired>
-                  <FormLabel>Full Name</FormLabel>
-                  <Input 
-                    name="name" 
-                    value={formData.name}
-                    onChange={handleChange}
-                  />
-                </FormControl>
-                
-                <FormControl id="email" isRequired>
-                  <FormLabel>Email address</FormLabel>
-                  <Input 
-                    type="email" 
-                    name="email" 
-                    value={formData.email}
-                    onChange={handleChange}
-                  />
-                </FormControl>
-                
-                <HStack spacing={4}>
-                  <FormControl id="contactNumber">
-                    <FormLabel>Contact Number</FormLabel>
-                    <Input 
-                      name="contactNumber" 
-                      value={formData.contactNumber}
-                      onChange={handleChange}
-                    />
-                  </FormControl>
-                  
-                  <FormControl id="department">
-                    <FormLabel>Department</FormLabel>
-                    <Input 
-                      name="department" 
-                      value={formData.department}
-                      onChange={handleChange}
-                    />
-                  </FormControl>
-                </HStack>
-                
-                {isAdmin && (
-                  <FormControl id="role" isRequired>
-                    <FormLabel>Role</FormLabel>
-                    <Select 
-                      name="role" 
-                      value={formData.role}
-                      onChange={handleChange}
-                    >
-                      <option value="staff">Staff</option>
-                      <option value="technician">Technician</option>
-                      <option value="donor_coordinator">Donor Coordinator</option>
-                      <option value="manager">Manager</option>
-                      <option value="admin">Administrator</option>
-                    </Select>
-                  </FormControl>
-                )}
-                
-                <FormControl id="password" isRequired>
-                  <FormLabel>Password</FormLabel>
-                  <InputGroup>
-                    <Input
-                      type={showPassword ? 'text' : 'password'}
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                    />
-                    <InputRightElement>
-                      <IconButton
-                        size="sm"
-                        variant="ghost"
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                        icon={showPassword ? <FaEyeSlash /> : <FaEye />}
-                        onClick={togglePasswordVisibility}
-                      />
-                    </InputRightElement>
-                  </InputGroup>
-                </FormControl>
-                
-                <FormControl id="confirmPassword" isRequired>
-                  <FormLabel>Confirm Password</FormLabel>
+          <form onSubmit={handleSubmit}>
+            <VStack spacing={4}>
+              <FormControl isRequired>
+                <FormLabel>Full Name</FormLabel>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter your full name"
+                />
+              </FormControl>
+              
+              <FormControl isRequired>
+                <FormLabel>Email</FormLabel>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                />
+              </FormControl>
+              
+              <FormControl isRequired>
+                <FormLabel>Password</FormLabel>
+                <InputGroup>
                   <Input
-                    type="password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Create a password"
                   />
-                </FormControl>
-                
-                <Stack spacing={6} pt={2}>
-                  <Button
-                    colorScheme="red"
-                    type="submit"
-                    isLoading={isLoading}
-                    loadingText="Submitting"
+                  <InputRightElement>
+                    <IconButton
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      icon={showPassword ? <ViewOffIcon /> : <ViewIcon />}
+                      onClick={() => setShowPassword(!showPassword)}
+                      variant="ghost"
+                      size="sm"
+                    />
+                  </InputRightElement>
+                </InputGroup>
+              </FormControl>
+              
+              <FormControl isRequired>
+                <FormLabel>Confirm Password</FormLabel>
+                <InputGroup>
+                  <Input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm your password"
+                  />
+                  <InputRightElement>
+                    <IconButton
+                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      icon={showConfirmPassword ? <ViewOffIcon /> : <ViewIcon />}
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      variant="ghost"
+                      size="sm"
+                    />
+                  </InputRightElement>
+                </InputGroup>
+              </FormControl>
+              
+              {!isAdmin && (
+                <FormControl isRequired>
+                  <FormLabel>Role</FormLabel>
+                  <Select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
                   >
-                    {isAdmin ? 'Create Account' : 'Register'}
-                  </Button>
-                  
-                  {!isAdmin && (
-                    <Text align="center">
-                      Already have an account?{' '}
-                      <NextLink href="/auth/login" passHref>
-                        <Link color="blue.500">
-                          Login here
-                        </Link>
-                      </NextLink>
-                    </Text>
-                  )}
-                </Stack>
-              </Stack>
-            </form>
-          )}
+                    <option value="staff">Staff</option>
+                    <option value="technician">Technician</option>
+                    <option value="donor_coordinator">Donor Coordinator</option>
+                    <option value="manager">Manager</option>
+                  </Select>
+                </FormControl>
+              )}
+              
+              <FormControl>
+                <FormLabel>Department</FormLabel>
+                <Input
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  placeholder="Enter your department (optional)"
+                />
+              </FormControl>
+              
+              <FormControl>
+                <Checkbox
+                  isChecked={agreeToTerms}
+                  onChange={(e) => setAgreeToTerms(e.target.checked)}
+                >
+                  I agree to the terms and conditions
+                </Checkbox>
+              </FormControl>
+              
+              <Button
+                type="submit"
+                colorScheme="blue"
+                size="lg"
+                fontSize="md"
+                isLoading={isLoading}
+                width="full"
+                mt={4}
+                isDisabled={!agreeToTerms}
+              >
+                {isAdmin ? 'Create Admin Account' : 'Register'}
+              </Button>
+              
+              {!isAdmin && (
+                <Text mt={4}>
+                  Already have an account?{' '}
+                  <NextLink href="/auth/login" passHref>
+                    <Link color="blue.500">Sign in</Link>
+                  </NextLink>
+                </Text>
+              )}
+            </VStack>
+          </form>
         </Box>
-      </Stack>
-    </Flex>
+      </Flex>
+    </Container>
   );
-}
+};
 
-// Server-side protection for regular registration
-export async function getServerSideProps(context) {
-  const { req, query } = context;
-  const { isAdmin } = query;
-  const session = await getSession({ req });
-  
-  // If isAdmin flag is present, check if the user is an admin
-  if (isAdmin === 'true') {
-    // Redirect to login if not authenticated
-    if (!session) {
-      return {
-        redirect: {
-          destination: '/auth/login',
-          permanent: false,
-        },
-      };
-    }
-    
-    // Redirect to home if not an admin
-    if (session.user.role !== 'admin' && !session.user.permissions.canManageUsers) {
-      return {
-        redirect: {
-          destination: '/',
-          permanent: false,
-        },
-      };
-    }
-    
-    return {
-      props: { isAdmin: true },
-    };
-  }
-  
-  // If public registration is disabled, redirect non-admins
-  // In a real app, you might want to control this via environment variable
-  const PUBLIC_REGISTRATION_ENABLED = false;
-  
-  if (!PUBLIC_REGISTRATION_ENABLED) {
-    return {
-      redirect: {
-        destination: '/auth/login',
-        permanent: false,
-      },
-    };
-  }
-  
-  return {
-    props: { isAdmin: false },
-  };
-}
+// Mark this as an auth page to avoid wrapping it in the MainLayout
+RegisterPage.authPage = true;
+
+export default RegisterPage;

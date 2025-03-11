@@ -222,4 +222,7 @@ const ResetPasswordPage = () => {
   );
 };
 
+// Mark this as an auth page to avoid wrapping it in the MainLayout
+ResetPasswordPage.authPage = true;
+
 export default ResetPasswordPage;

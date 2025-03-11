@@ -104,4 +104,7 @@ const ForgotPasswordPage = () => {
   );
 };
 
+// Mark this as an auth page to avoid wrapping it in the MainLayout
+ForgotPasswordPage.authPage = true;
+
 export default ForgotPasswordPage;
