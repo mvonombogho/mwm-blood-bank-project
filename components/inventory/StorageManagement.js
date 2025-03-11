@@ -53,6 +53,7 @@ import {
 } from 'react-icons/fi';
 import AddStorageUnitModal from './AddStorageUnitModal';
 import StorageTemperatureChart from './StorageTemperatureChart';
+import AddTemperatureModal from './AddTemperatureModal';
 
 const StatusBadge = ({ status }) => {
   const colorScheme = {
@@ -68,6 +69,7 @@ const StatusBadge = ({ status }) => {
 const StorageManagement = () => {
   const toast = useToast();
   const { isOpen: isAddModalOpen, onOpen: onAddModalOpen, onClose: onAddModalClose } = useDisclosure();
+  const { isOpen: isAddTempModalOpen, onOpen: onAddTempModalOpen, onClose: onAddTempModalClose } = useDisclosure();
   
   const [storageUnits, setStorageUnits] = useState([]);
   const [filteredUnits, setFilteredUnits] = useState([]);
@@ -149,6 +151,34 @@ const StorageManagement = () => {
     });
   };
 
+  const handleLogTemperature = () => {
+    if (!selectedStorage) {
+      toast({
+        title: 'No Storage Unit Selected',
+        description: 'Please select a storage unit first',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    onAddTempModalOpen();
+  };
+
+  const handleTemperatureAdded = () => {
+    toast({
+      title: 'Success',
+      description: 'Temperature reading added successfully',
+      status: 'success',
+      duration: 3000,
+      isClosable: true,
+    });
+    
+    // Refresh storage units to get updated temperature
+    fetchStorageUnits();
+  };
+
   const resetFilters = () => {
     setSearchTerm('');
     setStatusFilter('');
@@ -176,13 +206,25 @@ const StorageManagement = () => {
     <Box>
       <Flex justify="space-between" align="center" mb={6}>
         <Heading as="h2" size="lg">Storage Management</Heading>
-        <Button 
-          leftIcon={<FiPlus />} 
-          colorScheme="blue" 
-          onClick={onAddModalOpen}
-        >
-          Add Storage Unit
-        </Button>
+        <HStack>
+          {selectedStorage && (
+            <Button 
+              leftIcon={<FiThermometer />} 
+              colorScheme="teal" 
+              onClick={handleLogTemperature}
+              mr={2}
+            >
+              Log Temperature
+            </Button>
+          )}
+          <Button 
+            leftIcon={<FiPlus />} 
+            colorScheme="blue" 
+            onClick={onAddModalOpen}
+          >
+            Add Storage Unit
+          </Button>
+        </HStack>
       </Flex>
 
       <Card bg={bgColor} boxShadow="md" borderRadius="lg" mb={6}>
@@ -271,6 +313,8 @@ const StorageManagement = () => {
                       transition="all 0.2s"
                       onClick={() => handleSelectStorage(unit)}
                       cursor="pointer"
+                      borderWidth="2px"
+                      borderColor={selectedStorage?._id === unit._id ? 'blue.500' : 'transparent'}
                     >
                       <CardHeader pb={2}>
                         <Flex justify="space-between" align="center">
@@ -385,7 +429,20 @@ const StorageManagement = () => {
             <TabPanel p={0}>
               <Card bg={bgColor} boxShadow="md" borderRadius="lg" mb={6}>
                 <CardHeader pb={0}>
-                  <Heading size="md">Temperature Monitoring</Heading>
+                  <Flex justify="space-between" align="center">
+                    <Heading size="md">Temperature Monitoring</Heading>
+                    
+                    {selectedStorage && (
+                      <Button 
+                        leftIcon={<FiThermometer />} 
+                        colorScheme="teal" 
+                        size="sm"
+                        onClick={handleLogTemperature}
+                      >
+                        Log Temperature
+                      </Button>
+                    )}
+                  </Flex>
                 </CardHeader>
                 <CardBody>
                   {filteredUnits.length === 0 ? (
@@ -411,7 +468,7 @@ const StorageManagement = () => {
                         ))}
                       </SimpleGrid>
                       
-                      {selectedStorage && (
+                      {selectedStorage ? (
                         <Box>
                           <Flex justify="space-between" align="center" mb={4}>
                             <Heading size="sm">{selectedStorage.name} Temperature History</Heading>
@@ -453,6 +510,10 @@ const StorageManagement = () => {
                             </Stat>
                           </SimpleGrid>
                         </Box>
+                      ) : (
+                        <Flex justify="center" align="center" h="200px">
+                          <Text>Please select a storage unit to view temperature data</Text>
+                        </Flex>
                       )}
                     </Box>
                   )}
@@ -469,6 +530,16 @@ const StorageManagement = () => {
         onClose={onAddModalClose} 
         onStorageUnitAdded={handleAddStorageUnit} 
       />
+
+      {/* Add Temperature Reading Modal */}
+      {selectedStorage && (
+        <AddTemperatureModal
+          isOpen={isAddTempModalOpen}
+          onClose={onAddTempModalClose}
+          storageUnit={selectedStorage}
+          onTemperatureAdded={handleTemperatureAdded}
+        />
+      )}
     </Box>
   );
 };
