@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Button,
@@ -14,37 +14,20 @@ import {
   IconButton,
   Badge,
   useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalCloseButton,
-  ModalBody,
-  ModalFooter,
-  FormControl,
-  FormLabel,
-  Input,
-  Select,
-  InputGroup,
-  InputRightElement,
   useToast,
   Text,
   Stack,
+  InputGroup,
   InputLeftElement,
+  Input,
   Alert,
   AlertIcon,
-  AlertDialog,
-  AlertDialogBody,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogContent,
-  AlertDialogOverlay,
 } from '@chakra-ui/react';
-import { AddIcon, DeleteIcon, EditIcon, SearchIcon, ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
+import { AddIcon, DeleteIcon, EditIcon, SearchIcon } from '@chakra-ui/icons';
 import axios from 'axios';
-import { useRouter } from 'next/router';
 import ProtectedRoute from '../../../components/auth/ProtectedRoute';
-import { useRef } from 'react';
+import UserModal from '../../../components/admin/UserModal';
+import DeleteConfirmation from '../../../components/common/DeleteConfirmation';
 
 const UserManagementPage = () => {
   const toast = useToast();
@@ -70,7 +53,6 @@ const UserManagementPage = () => {
   
   const [formMode, setFormMode] = useState('create'); // 'create' or 'edit'
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [showPassword, setShowPassword] = useState(false);
   
   // User modal
   const { isOpen: isUserModalOpen, onOpen: onUserModalOpen, onClose: onUserModalClose } = useDisclosure();
@@ -395,6 +377,28 @@ const UserManagementPage = () => {
             </Alert>
           )}
         </Box>
+        
+        {/* User Modal */}
+        <UserModal 
+          isOpen={isUserModalOpen}
+          onClose={onUserModalClose}
+          formMode={formMode}
+          userForm={userForm}
+          handleFormChange={handleFormChange}
+          handleSubmit={handleSubmitUser}
+          isLoading={loading}
+        />
+        
+        {/* Delete Confirmation Dialog */}
+        <DeleteConfirmation 
+          isOpen={isDeleteAlertOpen}
+          onClose={onDeleteAlertClose}
+          onConfirm={handleDeleteUser}
+          title="Delete User"
+          message={`Are you sure you want to delete ${userToDelete?.name}? This action cannot be undone.`}
+          cancelRef={cancelRef}
+          isLoading={loading}
+        />
       </Container>
     </ProtectedRoute>
   );
