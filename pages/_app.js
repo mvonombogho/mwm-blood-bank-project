@@ -1,19 +1,26 @@
-import { ChakraProvider } from '@chakra-ui/react';
+import { ChakraProvider, CSSReset } from '@chakra-ui/react';
 import { SessionProvider } from 'next-auth/react';
-import Head from 'next/head';
-import theme from '../styles/theme';
+import MainLayout from '../components/layout/MainLayout';
+import NextNProgress from 'nextjs-progressbar';
 import '../styles/globals.css';
 
 function MyApp({ Component, pageProps: { session, ...pageProps } }) {
+  // Check if the page is an auth page (login, register, etc.)
+  const isAuthPage = Component.authPage || false;
+  
   return (
     <SessionProvider session={session}>
-      <ChakraProvider theme={theme}>
-        <Head>
-          <title>Blood Bank Management System</title>
-          <meta name="description" content="A comprehensive blood bank management system" />
-          <link rel="icon" href="/favicon.ico" />
-        </Head>
-        <Component {...pageProps} />
+      <ChakraProvider>
+        <CSSReset />
+        <NextNProgress color="#3182CE" options={{ showSpinner: false }} />
+        
+        {isAuthPage ? (
+          <Component {...pageProps} />
+        ) : (
+          <MainLayout>
+            <Component {...pageProps} />
+          </MainLayout>
+        )}
       </ChakraProvider>
     </SessionProvider>
   );
