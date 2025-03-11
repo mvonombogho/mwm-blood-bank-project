@@ -1,27 +1,35 @@
-import { Box, Heading, Button, Flex } from '@chakra-ui/react';
-import { ArrowBackIcon } from '@chakra-ui/icons';
 import { useRouter } from 'next/router';
-import AddDonorForm from '@/components/donors/AddDonorForm';
+import {
+  Box,
+  Container,
+  Button,
+  Flex,
+  Heading,
+} from '@chakra-ui/react';
+import { ArrowBackIcon } from '@chakra-ui/icons';
+import DonorForm from '../../components/donors/DonorForm';
+import ProtectedRoute from '../../components/auth/ProtectedRoute';
 
 const AddDonorPage = () => {
   const router = useRouter();
 
   return (
-    <Box maxW="container.xl" mx="auto" py={6}>
-      <Flex mb={6} alignItems="center">
-        <Button 
-          leftIcon={<ArrowBackIcon />} 
-          variant="ghost" 
-          onClick={() => router.push('/donors')}
-          mr={4}
-        >
-          Back to List
-        </Button>
-        <Heading size="lg">Add New Donor</Heading>
-      </Flex>
-      
-      <AddDonorForm />
-    </Box>
+    <ProtectedRoute requiredPermission="canManageDonors">
+      <Container maxW="container.xl" py={6}>
+        <Flex align="center" mb={6}>
+          <Button
+            leftIcon={<ArrowBackIcon />}
+            variant="ghost"
+            onClick={() => router.push('/donors')}
+            size="sm"
+          >
+            Back to Donors
+          </Button>
+        </Flex>
+        
+        <DonorForm />
+      </Container>
+    </ProtectedRoute>
   );
 };
 
