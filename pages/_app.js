@@ -1,14 +1,21 @@
-import { ChakraProvider, Box, Flex } from '@chakra-ui/react';
-import Navbar from '@/components/layout/Navbar';
+import { ChakraProvider } from '@chakra-ui/react';
+import { SessionProvider } from 'next-auth/react';
+import Head from 'next/head';
+import theme from '../styles/theme';
+import '../styles/globals.css';
 
-function MyApp({ Component, pageProps }) {
+function MyApp({ Component, pageProps: { session, ...pageProps } }) {
   return (
-    <ChakraProvider>
-      <Navbar />
-      <Box as="main" pt="16">
+    <SessionProvider session={session}>
+      <ChakraProvider theme={theme}>
+        <Head>
+          <title>Blood Bank Management System</title>
+          <meta name="description" content="A comprehensive blood bank management system" />
+          <link rel="icon" href="/favicon.ico" />
+        </Head>
         <Component {...pageProps} />
-      </Box>
-    </ChakraProvider>
+      </ChakraProvider>
+    </SessionProvider>
   );
 }
 
