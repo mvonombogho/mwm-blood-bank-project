@@ -14,13 +14,13 @@ import {
   InputGroup,
   InputRightElement,
   IconButton,
-  Link,
+  Link as ChakraLink,
   Container,
   Flex,
   Image
 } from '@chakra-ui/react';
 import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
-import NextLink from 'next/link';
+import Link from 'next/link';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -117,9 +117,9 @@ const LoginPage = () => {
               </FormControl>
 
               <Box alignSelf="flex-end">
-                <NextLink href="/auth/forgot-password" passHref>
-                  <Link color="blue.500">Forgot password?</Link>
-                </NextLink>
+                <Link href="/auth/forgot-password" passHref legacyBehavior>
+                  <ChakraLink color="blue.500">Forgot password?</ChakraLink>
+                </Link>
               </Box>
 
               <Button
