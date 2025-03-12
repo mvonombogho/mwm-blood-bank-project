@@ -65,6 +65,18 @@ const HomePage = () => {
     fetchDashboardData();
   }, []);
   
+  // Helper function to safely format the monthly change text
+  const getMonthlyChangeText = (change) => {
+    // Return a default message if change is undefined or null
+    if (change === undefined || change === null) {
+      return 'No change data available';
+    }
+    
+    // Safely calculate the absolute value and format
+    const absChange = Math.abs(parseFloat(change) || 0).toFixed(1);
+    return change > 0 ? `${absChange}% increase` : `${absChange}% decrease`;
+  };
+  
   const renderStat = (title, value, icon, color, helpText, change) => (
     <Card bg={bgColor} boxShadow="sm">
       <CardBody>
@@ -77,7 +89,9 @@ const HomePage = () => {
             {helpText && (
               <Skeleton isLoaded={!loading}>
                 <StatHelpText>
-                  {change && <StatArrow type={change > 0 ? 'increase' : 'decrease'} />}
+                  {change !== undefined && change !== null && (
+                    <StatArrow type={change > 0 ? 'increase' : 'decrease'} />
+                  )}
                   {helpText}
                 </StatHelpText>
               </Skeleton>
@@ -128,9 +142,7 @@ const HomePage = () => {
           loading ? '...' : stats?.donationsThisMonth || 0,
           FiActivity,
           'green',
-          stats?.donationsMonthlyChange > 0 
-            ? `${Math.abs(stats.donationsMonthlyChange).toFixed(1)}% increase` 
-            : `${Math.abs(stats.donationsMonthlyChange).toFixed(1)}% decrease`,
+          getMonthlyChangeText(stats?.donationsMonthlyChange),
           stats?.donationsMonthlyChange
         )}
         
