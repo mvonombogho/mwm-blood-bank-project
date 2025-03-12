@@ -12,9 +12,9 @@ import {
   Container,
   InputGroup,
   InputRightElement,
-  Link
+  Link as ChakraLink
 } from '@chakra-ui/react';
-import NextLink from 'next/link';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 
 const Register = () => {
@@ -152,9 +152,9 @@ const Register = () => {
           <Box width="100%" pt={4}>
             <Text align="center">
               Already have an account?{' '}
-              <NextLink href="/auth/login" passHref>
-                <Link color="blue.500">Login</Link>
-              </NextLink>
+              <Link href="/auth/login" passHref legacyBehavior>
+                <ChakraLink color="blue.500">Login</ChakraLink>
+              </Link>
             </Text>
           </Box>
         </VStack>
