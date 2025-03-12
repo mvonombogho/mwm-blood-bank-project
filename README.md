@@ -1,159 +1,97 @@
 # Blood Bank Management System
 
-A comprehensive blood bank management system built with Next.js and MongoDB.
-
-## Project Overview
-
-This system helps blood banks manage their donations and distributions effectively by tracking donors, blood inventory, and recipients. It provides real-time dashboards, storage condition monitoring, and expiry tracking to ensure efficient management of blood supply.
+A comprehensive system designed to help blood banks manage their donations and distributions effectively. This system tracks donors, blood inventory, and recipients in a simple and organized way.
 
 ## Features
 
-- **Blood Inventory Dashboard**
-  - Visual overview of current blood supply levels by blood type
-  - Critical alerts for low stock or expiring units
-  - Visual representations of inventory status
+- **Donor Management:** Store donor information, track blood type, and record donation history
+- **Blood Inventory:** Track blood units, monitor expiry dates, and manage storage locations
+- **Recipient Management:** Manage recipient information and transfusion records
+- **Reports:** Generate insights on blood stock, donation history, and transfusion records
 
-- **Blood Unit Management**
-  - Advanced blood unit tracking with detailed information
-  - Status management (Available, Reserved, Quarantined, Discarded, Transfused, Expired)
-  - Filtering and search capabilities
-  - Batch operations for efficient management
+## Technology Stack
 
-- **Storage Management**
-  - Storage location and condition tracking
-  - Temperature logging and monitoring system
-  - Maintenance records tracking
-  - Historical temperature data visualization
-
-- **Expiry Tracking**
-  - Calendar view of upcoming expirations
-  - Notification system for units nearing expiry
-  - Expired units management process
-  - Batch processing of expired units
-
-- **User Authentication**
-  - Role-based access control
-  - Protected routes and API endpoints
-  - User management interface
-
-- **Donor Management**
-  - Donor registration and profiles
-  - Donation history tracking
-  - Health screening records
-
-- **Recipient Management**
-  - Recipient information tracking
-  - Transfusion history
-  - Medical needs recording
-
-## Tech Stack
-
-- **Frontend**: Next.js, Chakra UI, Chart.js
-- **Backend**: Next.js API Routes
-- **Database**: MongoDB
-- **Authentication**: NextAuth.js
-- **State Management**: React Hooks
+- **Next.js:** React framework for server-side rendering and static site generation
+- **MongoDB:** NoSQL database for flexible schema design and scalability
+- **NextAuth.js:** Authentication solution for Next.js applications
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 14+
-- MongoDB
-- Git
+- Node.js (v14 or later)
+- npm or yarn
+- MongoDB instance (local or Atlas)
 
 ### Installation
 
-```bash
-# Clone the repository
-git clone https://github.com/mvonombogho/mwm-blood-bank-project.git
+1. Clone the repository:
+   ```
+   git clone https://github.com/mvonombogho/mwm-blood-bank-project.git
+   cd mwm-blood-bank-project
+   ```
 
-# Navigate to the project directory
-cd mwm-blood-bank-project
+2. Install dependencies:
+   ```
+   npm install
+   # or
+   yarn install
+   ```
 
-# Install dependencies
-npm install
+3. Configure environment variables:
+   - Copy the `.env.local` template
+   - Update the MongoDB connection string with your credentials
+   - Set up NextAuth secret key
 
-# Set up environment variables
-# Create a .env.local file with the following variables:
-MONGODB_URI=your_mongodb_connection_string
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your_nextauth_secret # Generate a secure random string
-NEXT_PUBLIC_API_URL=http://localhost:3000/api
+4. Run the development server:
+   ```
+   npm run dev
+   # or
+   yarn dev
+   ```
 
-# Run the development server
-npm run dev
-```
-
-### Creating the First Admin User
-
-To set up the first administrator account:
-
-1. Start the development server
-2. Visit `/auth/register?isAdmin=true` (this special URL bypasses auth checks for the first user only)
-3. Create your admin account with full permissions
-4. After the first admin is created, all subsequent user management should be done through the admin interface
-
-## Documentation
-
-The project includes the following documentation:
-
-- [API Documentation](./docs/API.md) - Detailed information about all API endpoints
-- [User Guide](./docs/UserGuide.md) - Instructions for using the system
-- [Developer Guide](./docs/DeveloperGuide.md) - Information for developers
-- [System Architecture](./docs/Architecture.md) - Overview of system design
+5. Access the application at [http://localhost:3000](http://localhost:3000)
 
 ## Project Structure
 
+- `/components` - React components
+- `/lib` - Utility functions and database connection
+- `/models` - MongoDB schema models
+- `/pages` - Next.js pages and API routes
+- `/styles` - CSS and styling files
+- `/docs` - Documentation files
+
+## Database Design
+
+The system uses MongoDB with the following key collections:
+
+- **Donors** - Donor personal and medical information
+- **BloodUnits** - Individual blood unit tracking
+- **Recipients** - Recipient information and history
+- **Storage** - Storage location management
+- **Users** - System users and authentication
+
+## API Routes
+
+- `/api/donors` - Donor management endpoints
+- `/api/recipients` - Recipient management endpoints
+- `/api/inventory` - Blood inventory management
+- `/api/auth` - Authentication endpoints
+
+## Troubleshooting
+
+If you encounter the following errors:
+
 ```
-├── components/          # React components
-│   ├── auth/            # Authentication components
-│   ├── donors/          # Donor management components
-│   ├── inventory/       # Inventory management components
-│   └── layout/          # Layout components
-├── lib/                 # Utility functions
-│   ├── middlewares/     # API middlewares
-│   ├── mongodb.js       # MongoDB connection
-│   └── apiUtils.js      # API utilities
-├── models/              # MongoDB schemas
-├── pages/               # Next.js pages
-│   ├── api/             # API routes
-│   ├── auth/            # Authentication pages
-│   ├── donors/          # Donor management pages
-│   ├── inventory/       # Inventory management pages
-│   └── _app.js          # App configuration
-├── styles/              # Global styles
-└── docs/                # Documentation
+- warn Duplicate page detected. pages\donors\[id].js and pages\donors\[id]\index.js resolve to /donors/[id]
+- warn Duplicate page detected. pages\api\inventory\storage\temperature.js and pages\api\inventory\storage\temperature\index.js resolve to /api/inventory/storage/temperature
 ```
 
-## Deployment
+These have been fixed in the latest version by:
+1. Replacing duplicate pages with distinct routes
+2. Creating a central MongoDB connection utility
 
-The application can be deployed to various platforms:
-
-1. **Vercel**: Recommended for Next.js applications
-   ```bash
-   npm install -g vercel
-   vercel
-   ```
-
-2. **Custom Server**: Follow the [Next.js custom server documentation](https://nextjs.org/docs/advanced-features/custom-server)
-
-## Maintenance
-
-Regular maintenance tasks include:
-
-- Database backups (recommended daily)
-- System updates (security patches)
-- Environment monitoring
-- Performance optimization
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+If you see database connection errors, ensure your MongoDB connection string in `.env.local` is correct and your database server is running.
 
 ## License
 
@@ -161,4 +99,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Author
 
-Mercy Wamaitha Mathu (22/00067) - Bachelor of Science in Information Technology
+Mercy Wamaitha Mathu - Bachelor of Science in Information Technology (BIT)
