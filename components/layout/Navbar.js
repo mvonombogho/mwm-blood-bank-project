@@ -7,7 +7,7 @@ import {
   Stack, 
   Collapse, 
   Icon, 
-  Link, 
+  Link as ChakraLink, 
   Popover, 
   PopoverTrigger, 
   PopoverContent, 
@@ -21,7 +21,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
 } from '@chakra-ui/icons';
-import NextLink from 'next/link';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 
 export default function Navbar() {
@@ -82,29 +82,31 @@ export default function Navbar() {
           direction={'row'}
           spacing={6}
         >
-          <Button
-            as={NextLink}
-            href={'#'}
-            fontSize={'sm'}
-            fontWeight={400}
-            variant={'link'}
-          >
-            Sign In
-          </Button>
-          <Button
-            as={NextLink}
-            href={'#'}
-            display={{ base: 'none', md: 'inline-flex' }}
-            fontSize={'sm'}
-            fontWeight={600}
-            color={'white'}
-            bg={'blue.400'}
-            _hover={{
-              bg: 'blue.300',
-            }}
-          >
-            Sign Up
-          </Button>
+          <Link href="/auth/login" passHref legacyBehavior>
+            <Button
+              as="a"
+              fontSize={'sm'}
+              fontWeight={400}
+              variant={'link'}
+            >
+              Sign In
+            </Button>
+          </Link>
+          <Link href="/auth/register" passHref legacyBehavior>
+            <Button
+              as="a"
+              display={{ base: 'none', md: 'inline-flex' }}
+              fontSize={'sm'}
+              fontWeight={600}
+              color={'white'}
+              bg={'blue.400'}
+              _hover={{
+                bg: 'blue.300',
+              }}
+            >
+              Sign Up
+            </Button>
+          </Link>
         </Stack>
       </Flex>
 
@@ -126,19 +128,19 @@ const DesktopNav = ({ router }) => {
         <Box key={navItem.label}>
           <Popover trigger={'hover'} placement={'bottom-start'}>
             <PopoverTrigger>
-              <Link
-                as={NextLink}
-                p={2}
-                href={navItem.href ?? '#'}
-                fontSize={'sm'}
-                fontWeight={500}
-                color={router.pathname === navItem.href ? 'blue.500' : linkColor}
-                _hover={{
-                  textDecoration: 'none',
-                  color: linkHoverColor,
-                }}
-              >
-                {navItem.label}
+              <Link href={navItem.href ?? '#'} passHref legacyBehavior>
+                <ChakraLink
+                  p={2}
+                  fontSize={'sm'}
+                  fontWeight={500}
+                  color={router.pathname === navItem.href ? 'blue.500' : linkColor}
+                  _hover={{
+                    textDecoration: 'none',
+                    color: linkHoverColor,
+                  }}
+                >
+                  {navItem.label}
+                </ChakraLink>
               </Link>
             </PopoverTrigger>
 
@@ -167,39 +169,39 @@ const DesktopNav = ({ router }) => {
 
 const DesktopSubNav = ({ label, href, subLabel, router }) => {
   return (
-    <Link
-      as={NextLink}
-      href={href}
-      role={'group'}
-      display={'block'}
-      p={2}
-      rounded={'md'}
-      _hover={{ bg: useColorModeValue('blue.50', 'gray.900') }}
-    >
-      <Stack direction={'row'} align={'center'}>
-        <Box>
-          <Text
+    <Link href={href} passHref legacyBehavior>
+      <ChakraLink
+        role={'group'}
+        display={'block'}
+        p={2}
+        rounded={'md'}
+        _hover={{ bg: useColorModeValue('blue.50', 'gray.900') }}
+      >
+        <Stack direction={'row'} align={'center'}>
+          <Box>
+            <Text
+              transition={'all .3s ease'}
+              _groupHover={{ color: 'blue.400' }}
+              fontWeight={500}
+              color={router.pathname === href ? 'blue.500' : undefined}
+            >
+              {label}
+            </Text>
+            <Text fontSize={'sm'}>{subLabel}</Text>
+          </Box>
+          <Flex
             transition={'all .3s ease'}
-            _groupHover={{ color: 'blue.400' }}
-            fontWeight={500}
-            color={router.pathname === href ? 'blue.500' : undefined}
+            transform={'translateX(-10px)'}
+            opacity={0}
+            _groupHover={{ opacity: '100%', transform: 'translateX(0)' }}
+            justify={'flex-end'}
+            align={'center'}
+            flex={1}
           >
-            {label}
-          </Text>
-          <Text fontSize={'sm'}>{subLabel}</Text>
-        </Box>
-        <Flex
-          transition={'all .3s ease'}
-          transform={'translateX(-10px)'}
-          opacity={0}
-          _groupHover={{ opacity: '100%', transform: 'translateX(0)' }}
-          justify={'flex-end'}
-          align={'center'}
-          flex={1}
-        >
-          <Icon color={'blue.400'} w={5} h={5} as={ChevronRightIcon} />
-        </Flex>
-      </Stack>
+            <Icon color={'blue.400'} w={5} h={5} as={ChevronRightIcon} />
+          </Flex>
+        </Stack>
+      </ChakraLink>
     </Link>
   );
 };
@@ -223,32 +225,33 @@ const MobileNavItem = ({ label, children, href }) => {
 
   return (
     <Stack spacing={4} onClick={children && onToggle}>
-      <Flex
-        py={2}
-        as={NextLink}
-        href={href ?? '#'}
-        justify={'space-between'}
-        align={'center'}
-        _hover={{
-          textDecoration: 'none',
-        }}
-      >
-        <Text
-          fontWeight={600}
-          color={useColorModeValue('gray.600', 'gray.200')}
+      <Link href={href ?? '#'} passHref legacyBehavior>
+        <Flex
+          py={2}
+          as="a"
+          justify={'space-between'}
+          align={'center'}
+          _hover={{
+            textDecoration: 'none',
+          }}
         >
-          {label}
-        </Text>
-        {children && (
-          <Icon
-            as={ChevronDownIcon}
-            transition={'all .25s ease-in-out'}
-            transform={isOpen ? 'rotate(180deg)' : ''}
-            w={6}
-            h={6}
-          />
-        )}
-      </Flex>
+          <Text
+            fontWeight={600}
+            color={useColorModeValue('gray.600', 'gray.200')}
+          >
+            {label}
+          </Text>
+          {children && (
+            <Icon
+              as={ChevronDownIcon}
+              transition={'all .25s ease-in-out'}
+              transform={isOpen ? 'rotate(180deg)' : ''}
+              w={6}
+              h={6}
+            />
+          )}
+        </Flex>
+      </Link>
 
       <Collapse in={isOpen} animateOpacity style={{ marginTop: '0!important' }}>
         <Stack
@@ -261,8 +264,10 @@ const MobileNavItem = ({ label, children, href }) => {
         >
           {children &&
             children.map((child) => (
-              <Link as={NextLink} key={child.label} py={2} href={child.href}>
-                {child.label}
+              <Link key={child.label} href={child.href} passHref legacyBehavior>
+                <ChakraLink py={2}>
+                  {child.label}
+                </ChakraLink>
               </Link>
             ))}
         </Stack>
