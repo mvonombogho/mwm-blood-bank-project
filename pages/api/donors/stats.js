@@ -77,14 +77,22 @@ async function handler(req, res) {
       formattedDonationsByMonth[monthName] = item.count;
     });
     
-    // Calculate change percentages
+    // Calculate change percentages with safer handling of edge cases
     const activeDonorsChange = lastMonthActiveDonors > 0 
       ? ((activeDonors - lastMonthActiveDonors) / lastMonthActiveDonors) * 100 
-      : 0;
+      : (activeDonors > 0 ? 100 : 0); // If no active donors last month but we have some now, that's a 100% increase
       
-    const donationsMonthlyChange = donationsLastMonth > 0 
-      ? ((donationsThisMonth - donationsLastMonth) / donationsLastMonth) * 100 
-      : 0;
+    let donationsMonthlyChange;
+    if (donationsLastMonth > 0) {
+      // Normal percentage calculation when we have donations last month
+      donationsMonthlyChange = ((donationsThisMonth - donationsLastMonth) / donationsLastMonth) * 100;
+    } else if (donationsThisMonth > 0) {
+      // If no donations last month but we have some this month, that's a 100% increase
+      donationsMonthlyChange = 100;
+    } else {
+      // If no donations last month and none this month, that's 0% change
+      donationsMonthlyChange = 0;
+    }
     
     res.status(200).json({
       totalDonors,
