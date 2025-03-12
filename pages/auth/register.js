@@ -163,4 +163,7 @@ const Register = () => {
   );
 };
 
+// Mark this as an auth page to avoid layout wrapper and authentication checks
+Register.authPage = true;
+
 export default Register;
