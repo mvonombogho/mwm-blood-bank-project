@@ -44,14 +44,20 @@ A comprehensive system designed to help blood banks manage their donations and d
    - Set up NextAuth secret key
    - Make sure to set a secure REGISTRATION_SECRET value
 
-4. Run the development server:
+4. Fix routing conflicts (if needed):
+   ```
+   # Run the script to fix duplicate page warnings
+   node scripts/fix-routing-conflicts.js
+   ```
+
+5. Run the development server:
    ```
    npm run dev
    # or
    yarn dev
    ```
 
-5. Access the application at [http://localhost:3000](http://localhost:3000)
+6. Access the application at [http://localhost:3000](http://localhost:3000)
 
 ### First-Time Setup: Creating an Admin User
 
@@ -73,6 +79,7 @@ When starting the application for the first time, you need to create an admin us
 - `/pages` - Next.js pages and API routes
 - `/styles` - CSS and styling files
 - `/docs` - Documentation files
+- `/scripts` - Utility scripts for maintenance
 
 ## Database Design
 
@@ -120,10 +127,21 @@ If you see warnings about duplicate routes:
 - warn Duplicate page detected. pages\api\inventory\storage\temperature.js and pages\api\inventory\storage\temperature\index.js resolve to /api/inventory/storage/temperature
 ```
 
-These have been fixed in the latest version. If they persist:
+To fix this:
 
-1. Make sure you've pulled the latest version of the code
-2. Restart the development server after pulling changes
+1. Run the provided cleanup script:
+   ```
+   node scripts/fix-routing-conflicts.js
+   ```
+
+2. Restart your Next.js server:
+   ```
+   npm run dev
+   ```
+
+3. The warnings should now be gone. If they persist, you can manually delete these files:
+   - `pages/donors/[id]/index.js`
+   - `pages/api/inventory/storage/temperature/index.js`
 
 ## License
 
