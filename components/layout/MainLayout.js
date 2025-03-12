@@ -20,6 +20,7 @@ import {
   Avatar,
   Heading,
   Button,
+  Link as ChakraLink
 } from '@chakra-ui/react';
 import {
   FiMenu,
@@ -34,7 +35,7 @@ import {
   FiHome,
   FiArchive,
 } from 'react-icons/fi';
-import NextLink from 'next/link';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 
 const SidebarContent = ({ onClose, ...rest }) => {
@@ -94,34 +95,39 @@ const SidebarContent = ({ onClose, ...rest }) => {
       
       <VStack spacing={1} align="stretch" mt={4}>
         {navItems.map((navItem) => (
-          <Box
-            as={NextLink}
+          <Link
             href={navItem.href}
             key={navItem.name}
-            role="group"
+            passHref
+            legacyBehavior
           >
-            <Flex
-              align="center"
-              p="4"
-              mx="4"
-              borderRadius="lg"
-              cursor="pointer"
-              color={router.pathname === navItem.href ? 'blue.500' : 'gray.600'}
-              bg={router.pathname === navItem.href ? 'blue.50' : 'transparent'}
-              fontWeight={router.pathname === navItem.href ? 'bold' : 'normal'}
-              _hover={{
-                bg: 'blue.50',
-                color: 'blue.500',
-              }}
+            <Box
+              as="a"
+              role="group"
             >
-              <Icon
-                mr="4"
-                fontSize="16"
-                as={navItem.icon}
-              />
-              {navItem.name}
-            </Flex>
-          </Box>
+              <Flex
+                align="center"
+                p="4"
+                mx="4"
+                borderRadius="lg"
+                cursor="pointer"
+                color={router.pathname === navItem.href ? 'blue.500' : 'gray.600'}
+                bg={router.pathname === navItem.href ? 'blue.50' : 'transparent'}
+                fontWeight={router.pathname === navItem.href ? 'bold' : 'normal'}
+                _hover={{
+                  bg: 'blue.50',
+                  color: 'blue.500',
+                }}
+              >
+                <Icon
+                  mr="4"
+                  fontSize="16"
+                  as={navItem.icon}
+                />
+                {navItem.name}
+              </Flex>
+            </Box>
+          </Link>
         ))}
       </VStack>
     </Box>
@@ -222,9 +228,11 @@ const MainLayout = ({ children }) => {
                 bg={useColorModeValue('white', 'gray.900')}
                 borderColor={useColorModeValue('gray.200', 'gray.700')}
               >
-                <MenuItem as={NextLink} href="/profile">
-                  Profile
-                </MenuItem>
+                <Link href="/profile" passHref legacyBehavior>
+                  <MenuItem as="a">
+                    Profile
+                  </MenuItem>
+                </Link>
                 <MenuDivider />
                 <MenuItem onClick={handleLogout} icon={<FiLogOut />}>
                   Sign out
