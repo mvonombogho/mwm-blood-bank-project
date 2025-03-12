@@ -1,12 +1,15 @@
 import dbConnect from '../../../../lib/dbConnect';
 import StorageLog from '../../../../models/StorageLog';
+import withAuth from '../../../../lib/middlewares/withAuth';
 
 /**
  * Temperature data API (replaces temperature/index.js to fix routing conflict)
+ * Handles temperature readings for storage units
  */
-export default async function handler(req, res) {
+async function handler(req, res) {
   const { method } = req;
   
+  // Connect to database
   await dbConnect();
   
   switch (method) {
@@ -65,7 +68,11 @@ export default async function handler(req, res) {
           return unitData;
         });
         
-        return res.status(200).json({ success: true, data: responseData });
+        return res.status(200).json({ 
+          success: true, 
+          data: responseData,
+          count: responseData.reduce((sum, unit) => sum + unit.readings.length, 0)
+        });
       } catch (error) {
         console.error('Error fetching temperature readings:', error);
         return res.status(500).json({ success: false, message: error.message });
@@ -99,9 +106,9 @@ export default async function handler(req, res) {
         // Create new reading entry
         const newReading = {
           temperature,
-          humidity,
+          humidity: humidity || null,
           recordedAt: new Date(),
-          recordedBy: recordedBy || 'System',
+          recordedBy: recordedBy || req.user?.id || 'System',
           status: status || 'Normal',
           notes: notes || ''
         };
@@ -117,7 +124,8 @@ export default async function handler(req, res) {
         
         return res.status(201).json({ 
           success: true, 
-          data: newReading 
+          data: newReading,
+          message: 'Temperature reading recorded successfully'
         });
       } catch (error) {
         console.error('Error adding temperature reading:', error);
@@ -125,6 +133,13 @@ export default async function handler(req, res) {
       }
     
     default:
-      return res.status(405).json({ success: false, message: `Method ${method} Not Allowed` });
+      return res.status(405).json({ 
+        success: false, 
+        message: `Method ${method} Not Allowed`,
+        allowedMethods: ['GET', 'POST']
+      });
   }
 }
+
+// Export the handler with authentication middleware
+export default withAuth(handler, { requiredPermission: 'canManageInventory' });
