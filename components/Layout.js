@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Box, Flex, Stack, Link, Icon, Text, Heading, IconButton, useDisclosure, useColorModeValue, VStack, HStack, CloseButton, Drawer, DrawerOverlay, DrawerContent, DrawerBody, Menu, MenuButton, MenuList, MenuItem, Avatar, Divider, Button } from '@chakra-ui/react';
+import { Box, Flex, Stack, Link as ChakraLink, Icon, Text, Heading, IconButton, useDisclosure, useColorModeValue, VStack, HStack, CloseButton, Drawer, DrawerOverlay, DrawerContent, DrawerBody, Menu, MenuButton, MenuList, MenuItem, Avatar, Divider, Button, MenuDivider } from '@chakra-ui/react';
 import { FaHome, FaUser, FaUserInjured, FaVial, FaThermometerHalf, FaSignOutAlt, FaChartLine, FaBars, FaCog, FaChevronDown } from 'react-icons/fa';
-import NextLink from 'next/link';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { useSession, signOut } from 'next-auth/react';
@@ -87,8 +87,8 @@ const Layout = ({ children, title = 'Blood Bank Management System' }) => {
     
     return (
       <Box mb={item.subItems ? 0 : 1}>
-        <NextLink href={item.path} passHref>
-          <Link 
+        <Link href={item.path} passHref legacyBehavior>
+          <ChakraLink 
             display="flex"
             alignItems="center"
             p={3}
@@ -99,8 +99,8 @@ const Layout = ({ children, title = 'Blood Bank Management System' }) => {
           >
             <Icon as={item.icon} mr={3} boxSize={5} />
             <Text fontSize="md">{item.name}</Text>
-          </Link>
-        </NextLink>
+          </ChakraLink>
+        </Link>
         
         {item.subItems && isExpanded && (
           <VStack mt={1} ml={6} spacing={1} align="stretch">
@@ -109,8 +109,8 @@ const Layout = ({ children, title = 'Blood Bank Management System' }) => {
               const subActiveStyles = isSubActive ? { color: primaryColor, fontWeight: 'bold' } : {};
               
               return (
-                <NextLink key={index} href={subItem.path} passHref>
-                  <Link 
+                <Link key={index} href={subItem.path} passHref legacyBehavior>
+                  <ChakraLink 
                     p={2}
                     pl={3}
                     borderRadius="md"
@@ -119,8 +119,8 @@ const Layout = ({ children, title = 'Blood Bank Management System' }) => {
                     {...subActiveStyles}
                   >
                     {subItem.name}
-                  </Link>
-                </NextLink>
+                  </ChakraLink>
+                </Link>
               );
             })}
           </VStack>
@@ -185,7 +185,7 @@ const Layout = ({ children, title = 'Blood Bank Management System' }) => {
         </Box>
       ) : (
         <Box mt="auto" pt={6}>
-          <NextLink href="/auth/login" passHref>
+          <Link href="/auth/login" passHref legacyBehavior>
             <Button 
               as="a" 
               w="full" 
@@ -195,7 +195,7 @@ const Layout = ({ children, title = 'Blood Bank Management System' }) => {
             >
               Login
             </Button>
-          </NextLink>
+          </Link>
         </Box>
       )}
     </Stack>
@@ -280,7 +280,9 @@ const Layout = ({ children, title = 'Blood Bank Management System' }) => {
                       {session?.user?.email}
                     </MenuItem>
                     <MenuDivider />
-                    <MenuItem icon={<FaCog />}>Account Settings</MenuItem>
+                    <Link href="/account/settings" passHref legacyBehavior>
+                      <MenuItem as="a" icon={<FaCog />}>Account Settings</MenuItem>
+                    </Link>
                     <MenuItem icon={<FaSignOutAlt />} onClick={handleLogout}>Logout</MenuItem>
                   </MenuList>
                 </Menu>
