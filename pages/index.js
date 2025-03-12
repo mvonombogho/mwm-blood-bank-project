@@ -29,7 +29,7 @@ import {
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import { FiUsers, FiDroplet, FiActivity, FiAlertCircle, FiCalendar } from 'react-icons/fi';
-import NextLink from 'next/link';
+import Link from 'next/link';
 
 const HomePage = () => {
   const [stats, setStats] = useState(null);
@@ -82,20 +82,22 @@ const HomePage = () => {
       <CardBody>
         <Flex justify="space-between">
           <Box>
-            <StatLabel fontWeight="medium" isTruncated>{title}</StatLabel>
-            <Skeleton isLoaded={!loading} mt={2}>
-              <StatNumber fontSize="3xl">{value}</StatNumber>
-            </Skeleton>
-            {helpText && (
-              <Skeleton isLoaded={!loading}>
-                <StatHelpText>
-                  {change !== undefined && change !== null && (
-                    <StatArrow type={change > 0 ? 'increase' : 'decrease'} />
-                  )}
-                  {helpText}
-                </StatHelpText>
+            <Stat>
+              <StatLabel fontWeight="medium" isTruncated>{title}</StatLabel>
+              <Skeleton isLoaded={!loading} mt={2}>
+                <StatNumber fontSize="3xl">{value}</StatNumber>
               </Skeleton>
-            )}
+              {helpText && (
+                <Skeleton isLoaded={!loading}>
+                  <StatHelpText>
+                    {change !== undefined && change !== null && (
+                      <StatArrow type={change > 0 ? 'increase' : 'decrease'} />
+                    )}
+                    {helpText}
+                  </StatHelpText>
+                </Skeleton>
+              )}
+            </Stat>
           </Box>
           <Flex
             justifyContent="center"
@@ -182,15 +184,16 @@ const HomePage = () => {
               </Skeleton>
               
               <Flex justify="flex-end" mt={4}>
-                <Button
-                  as={NextLink}
-                  href="/inventory"
-                  variant="outline"
-                  size="sm"
-                  colorScheme="blue"
-                >
-                  View All Inventory
-                </Button>
+                <Link href="/inventory" passHref legacyBehavior>
+                  <Button
+                    as="a"
+                    variant="outline"
+                    size="sm"
+                    colorScheme="blue"
+                  >
+                    View All Inventory
+                  </Button>
+                </Link>
               </Flex>
             </CardBody>
           </Card>
@@ -229,16 +232,17 @@ const HomePage = () => {
               </Skeleton>
               
               <Flex justify="flex-end" mt={4}>
-                <Button
-                  as={NextLink}
-                  href="/inventory/expiry-tracking"
-                  variant="outline"
-                  size="sm"
-                  colorScheme="orange"
-                  leftIcon={<FiCalendar />}
-                >
-                  View Expiry Calendar
-                </Button>
+                <Link href="/inventory/expiry-tracking" passHref legacyBehavior>
+                  <Button
+                    as="a"
+                    variant="outline"
+                    size="sm"
+                    colorScheme="orange"
+                    leftIcon={<FiCalendar />}
+                  >
+                    View Expiry Calendar
+                  </Button>
+                </Link>
               </Flex>
             </CardBody>
           </Card>
