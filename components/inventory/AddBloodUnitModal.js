@@ -12,69 +12,109 @@ import {
   FormLabel,
   Input,
   Select,
-  Stack,
-  NumberInput,
-  NumberInputField,
-  NumberInputStepper,
-  NumberIncrementStepper,
-  NumberDecrementStepper,
-  FormErrorMessage,
-  useToast,
+  Textarea,
   Grid,
-  GridItem
+  GridItem,
+  Divider,
+  Text,
+  useToast
 } from '@chakra-ui/react';
-import { useForm } from 'react-hook-form';
 
-const AddBloodUnitModal = ({ isOpen, onClose, onSuccess }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
   const toast = useToast();
+  const [loading, setLoading] = useState(false);
   
-  const { register, handleSubmit, formState: { errors }, reset } = useForm();
+  // Form state
+  const [bloodUnit, setBloodUnit] = useState({
+    unitId: `BU-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+    bloodType: '',
+    quantity: 450,
+    collectionDate: new Date().toISOString().split('T')[0],
+    expirationDate: new Date(Date.now() + 42 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: 'Quarantined',
+    location: {
+      facility: 'Main Blood Bank',
+      storageUnit: 'Refrigerator 1',
+      shelf: 'A',
+      position: ''
+    },
+    notes: ''
+  });
   
-  const onSubmit = async (data) => {
-    setIsSubmitting(true);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setBloodUnit({
+        ...bloodUnit,
+        [parent]: {
+          ...bloodUnit[parent],
+          [child]: value
+        }
+      });
+    } else {
+      setBloodUnit({
+        ...bloodUnit,
+        [name]: value
+      });
+    }
+  };
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
     
     try {
-      // Calculate expiration date based on collection date and processing method
-      // Different blood components have different shelf lives
-      const collectionDate = new Date(data.collectionDate);
-      let expirationDays = 42; // Default for whole blood (42 days)
+      // In a real application, you would make an API call here
+      // const response = await fetch('/api/inventory/blood-units', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify(bloodUnit),
+      // });
       
-      switch(data.processMethod) {
-        case 'Plasma':
-          expirationDays = 365; // 1 year for plasma
-          break;
-        case 'Platelets':
-          expirationDays = 5; // 5 days for platelets
-          break;
-        case 'RBC':
-          expirationDays = 42; // 42 days for red blood cells
-          break;
-        case 'Cryoprecipitate':
-          expirationDays = 365; // 1 year for cryoprecipitate
-          break;
-      }
+      // if (!response.ok) {
+      //   throw new Error('Failed to add blood unit');
+      // }
       
-      const expirationDate = new Date(collectionDate);
-      expirationDate.setDate(collectionDate.getDate() + expirationDays);
+      // const data = await response.json();
       
-      // In a real app, this would be an API call
-      // await axios.post('/api/inventory/blood-units', { ...data, expirationDate });
+      // For now we'll simulate a successful API response
+      const mockResponse = {
+        ...bloodUnit,
+        _id: Date.now().toString(),
+        statusHistory: [
+          {
+            status: 'Quarantined',
+            date: new Date(),
+            updatedBy: 'System',
+            notes: 'Initial status after collection'
+          }
+        ]
+      };
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the parent callback with the new blood unit
+      onBloodUnitAdded(mockResponse);
       
-      toast({
-        title: 'Blood unit added',
-        description: `Blood unit ${data.unitId} has been successfully added to inventory.`,
-        status: 'success',
-        duration: 5000,
-        isClosable: true,
+      // Reset form
+      setBloodUnit({
+        unitId: `BU-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+        bloodType: '',
+        quantity: 450,
+        collectionDate: new Date().toISOString().split('T')[0],
+        expirationDate: new Date(Date.now() + 42 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'Quarantined',
+        location: {
+          facility: 'Main Blood Bank',
+          storageUnit: 'Refrigerator 1',
+          shelf: 'A',
+          position: ''
+        },
+        notes: ''
       });
       
-      reset(); // Reset form
-      onSuccess(); // Call success callback
-      onClose(); // Close modal
     } catch (error) {
       console.error('Error adding blood unit:', error);
       toast({
@@ -85,184 +125,176 @@ const AddBloodUnitModal = ({ isOpen, onClose, onSuccess }) => {
         isClosable: true,
       });
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
   
-  const handleClose = () => {
-    reset(); // Reset form when closing
-    onClose();
-  };
-  
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="xl">
+    <Modal isOpen={isOpen} onClose={onClose} size="xl">
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>Add New Blood Unit</ModalHeader>
         <ModalCloseButton />
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit}>
           <ModalBody>
-            <Stack spacing={4}>
-              <Grid templateColumns="repeat(2, 1fr)" gap={4}>
-                <GridItem>
-                  <FormControl isRequired isInvalid={errors.unitId}>
-                    <FormLabel>Unit ID</FormLabel>
-                    <Input 
-                      {...register('unitId', { 
-                        required: 'Unit ID is required',
-                        pattern: {
-                          value: /^BLD-\d{4}-\d{4}$/,
-                          message: 'Unit ID should follow format: BLD-YYYY-NNNN'
-                        }
-                      })} 
-                      placeholder="BLD-2025-0001"
-                    />
-                    <FormErrorMessage>{errors.unitId?.message}</FormErrorMessage>
-                  </FormControl>
-                </GridItem>
-                
-                <GridItem>
-                  <FormControl isRequired isInvalid={errors.donorId}>
-                    <FormLabel>Donor ID</FormLabel>
-                    <Input 
-                      {...register('donorId', { 
-                        required: 'Donor ID is required' 
-                      })} 
-                      placeholder="D10045"
-                    />
-                    <FormErrorMessage>{errors.donorId?.message}</FormErrorMessage>
-                  </FormControl>
-                </GridItem>
-              </Grid>
+            <Grid templateColumns="repeat(2, 1fr)" gap={4}>
+              <GridItem colSpan={1}>
+                <FormControl isRequired>
+                  <FormLabel>Unit ID</FormLabel>
+                  <Input 
+                    name="unitId"
+                    value={bloodUnit.unitId}
+                    onChange={handleChange}
+                    placeholder="e.g., BU-A-1001"
+                  />
+                </FormControl>
+              </GridItem>
               
-              <Grid templateColumns="repeat(2, 1fr)" gap={4}>
-                <GridItem>
-                  <FormControl isRequired isInvalid={errors.bloodType}>
-                    <FormLabel>Blood Type</FormLabel>
-                    <Select 
-                      {...register('bloodType', { 
-                        required: 'Blood type is required' 
-                      })}
-                      placeholder="Select blood type"
-                    >
-                      <option value="A+">A+</option>
-                      <option value="A-">A-</option>
-                      <option value="B+">B+</option>
-                      <option value="B-">B-</option>
-                      <option value="AB+">AB+</option>
-                      <option value="AB-">AB-</option>
-                      <option value="O+">O+</option>
-                      <option value="O-">O-</option>
-                    </Select>
-                    <FormErrorMessage>{errors.bloodType?.message}</FormErrorMessage>
-                  </FormControl>
-                </GridItem>
-                
-                <GridItem>
-                  <FormControl isRequired isInvalid={errors.quantity}>
-                    <FormLabel>Quantity (ml)</FormLabel>
-                    <NumberInput min={1} max={1000} defaultValue={450}>
-                      <NumberInputField 
-                        {...register('quantity', { 
-                          required: 'Quantity is required',
-                          min: {
-                            value: 1,
-                            message: 'Quantity must be at least 1ml'
-                          },
-                          max: {
-                            value: 1000,
-                            message: 'Quantity cannot exceed 1000ml'
-                          }
-                        })} 
-                      />
-                      <NumberInputStepper>
-                        <NumberIncrementStepper />
-                        <NumberDecrementStepper />
-                      </NumberInputStepper>
-                    </NumberInput>
-                    <FormErrorMessage>{errors.quantity?.message}</FormErrorMessage>
-                  </FormControl>
-                </GridItem>
-              </Grid>
+              <GridItem colSpan={1}>
+                <FormControl isRequired>
+                  <FormLabel>Blood Type</FormLabel>
+                  <Select 
+                    name="bloodType"
+                    value={bloodUnit.bloodType}
+                    onChange={handleChange}
+                    placeholder="Select blood type"
+                  >
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </Select>
+                </FormControl>
+              </GridItem>
               
-              <Grid templateColumns="repeat(2, 1fr)" gap={4}>
-                <GridItem>
-                  <FormControl isRequired isInvalid={errors.collectionDate}>
-                    <FormLabel>Collection Date</FormLabel>
-                    <Input 
-                      type="date" 
-                      {...register('collectionDate', { 
-                        required: 'Collection date is required' 
-                      })} 
-                    />
-                    <FormErrorMessage>{errors.collectionDate?.message}</FormErrorMessage>
-                  </FormControl>
-                </GridItem>
-                
-                <GridItem>
-                  <FormControl isRequired isInvalid={errors.processMethod}>
-                    <FormLabel>Process Method</FormLabel>
-                    <Select 
-                      {...register('processMethod', { 
-                        required: 'Process method is required' 
-                      })}
-                      placeholder="Select process method"
-                    >
-                      <option value="Whole Blood">Whole Blood</option>
-                      <option value="Plasma">Plasma</option>
-                      <option value="Platelets">Platelets</option>
-                      <option value="RBC">Red Blood Cells</option>
-                      <option value="Cryoprecipitate">Cryoprecipitate</option>
-                    </Select>
-                    <FormErrorMessage>{errors.processMethod?.message}</FormErrorMessage>
-                  </FormControl>
-                </GridItem>
-              </Grid>
+              <GridItem colSpan={1}>
+                <FormControl isRequired>
+                  <FormLabel>Quantity (ml)</FormLabel>
+                  <Input 
+                    type="number"
+                    name="quantity"
+                    value={bloodUnit.quantity}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+              </GridItem>
               
-              <Grid templateColumns="repeat(2, 1fr)" gap={4}>
-                <GridItem>
-                  <FormControl isRequired isInvalid={errors.facility}>
-                    <FormLabel>Facility</FormLabel>
-                    <Input 
-                      {...register('facility', { 
-                        required: 'Facility is required' 
-                      })} 
-                      placeholder="Main Storage"
-                    />
-                    <FormErrorMessage>{errors.facility?.message}</FormErrorMessage>
-                  </FormControl>
-                </GridItem>
-                
-                <GridItem>
-                  <FormControl isRequired isInvalid={errors.storageUnit}>
-                    <FormLabel>Storage Unit</FormLabel>
-                    <Input 
-                      {...register('storageUnit', { 
-                        required: 'Storage unit is required' 
-                      })} 
-                      placeholder="Unit 1"
-                    />
-                    <FormErrorMessage>{errors.storageUnit?.message}</FormErrorMessage>
-                  </FormControl>
-                </GridItem>
-              </Grid>
+              <GridItem colSpan={1}>
+                <FormControl isRequired>
+                  <FormLabel>Status</FormLabel>
+                  <Select 
+                    name="status"
+                    value={bloodUnit.status}
+                    onChange={handleChange}
+                  >
+                    <option value="Quarantined">Quarantined</option>
+                    <option value="Available">Available</option>
+                    <option value="Reserved">Reserved</option>
+                    <option value="Discarded">Discarded</option>
+                    <option value="Transfused">Transfused</option>
+                    <option value="Expired">Expired</option>
+                  </Select>
+                </FormControl>
+              </GridItem>
               
-              <FormControl>
-                <FormLabel>Notes</FormLabel>
-                <Input {...register('notes')} placeholder="Additional notes" />
-              </FormControl>
-            </Stack>
+              <GridItem colSpan={1}>
+                <FormControl isRequired>
+                  <FormLabel>Collection Date</FormLabel>
+                  <Input 
+                    type="date"
+                    name="collectionDate"
+                    value={bloodUnit.collectionDate}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+              </GridItem>
+              
+              <GridItem colSpan={1}>
+                <FormControl isRequired>
+                  <FormLabel>Expiration Date</FormLabel>
+                  <Input 
+                    type="date"
+                    name="expirationDate"
+                    value={bloodUnit.expirationDate}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+              </GridItem>
+              
+              <GridItem colSpan={2}>
+                <Text fontWeight="medium" mb={2}>Storage Location</Text>
+                <Divider mb={2} />
+              </GridItem>
+              
+              <GridItem colSpan={1}>
+                <FormControl isRequired>
+                  <FormLabel>Facility</FormLabel>
+                  <Input 
+                    name="location.facility"
+                    value={bloodUnit.location.facility}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+              </GridItem>
+              
+              <GridItem colSpan={1}>
+                <FormControl isRequired>
+                  <FormLabel>Storage Unit</FormLabel>
+                  <Input 
+                    name="location.storageUnit"
+                    value={bloodUnit.location.storageUnit}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+              </GridItem>
+              
+              <GridItem colSpan={1}>
+                <FormControl>
+                  <FormLabel>Shelf</FormLabel>
+                  <Input 
+                    name="location.shelf"
+                    value={bloodUnit.location.shelf}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+              </GridItem>
+              
+              <GridItem colSpan={1}>
+                <FormControl>
+                  <FormLabel>Position</FormLabel>
+                  <Input 
+                    name="location.position"
+                    value={bloodUnit.location.position}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+              </GridItem>
+              
+              <GridItem colSpan={2}>
+                <FormControl>
+                  <FormLabel>Notes</FormLabel>
+                  <Textarea 
+                    name="notes"
+                    value={bloodUnit.notes}
+                    onChange={handleChange}
+                    placeholder="Any additional notes about this blood unit"
+                  />
+                </FormControl>
+              </GridItem>
+            </Grid>
           </ModalBody>
-          
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={handleClose}>
+            <Button colorScheme="gray" mr={3} onClick={onClose}>
               Cancel
             </Button>
             <Button 
-              colorScheme="red" 
-              type="submit" 
-              isLoading={isSubmitting}
-              loadingText="Adding"
+              type="submit"
+              colorScheme="blue"
+              isLoading={loading}
             >
               Add Blood Unit
             </Button>
