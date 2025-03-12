@@ -99,7 +99,9 @@ const ExpiredUnitsManager = () => {
       }
       
       const data = await response.json();
-      setExpiredUnits(data);
+      
+      // Extract the expiringUnits array from the response data
+      setExpiredUnits(data.expiringUnits || []);
     } catch (err) {
       console.error('Error fetching expired units:', err);
       setError('Failed to load expired blood units. Please try again.');
@@ -194,37 +196,49 @@ const ExpiredUnitsManager = () => {
   };
   
   // Filter and search functionality
-  const filteredUnits = expiredUnits.filter(unit => {
+  const filteredUnits = Array.isArray(expiredUnits) ? expiredUnits.filter(unit => {
     const matchesSearch = searchQuery === '' || 
-      unit.unitId.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      unit.bloodType.toLowerCase().includes(searchQuery.toLowerCase());
+      (unit.unitId && unit.unitId.toLowerCase().includes(searchQuery.toLowerCase())) || 
+      (unit.bloodType && unit.bloodType.toLowerCase().includes(searchQuery.toLowerCase()));
       
     const matchesFilter = filterValue === '' || unit.bloodType === filterValue;
     
     return matchesSearch && matchesFilter;
-  });
+  }) : [];
   
   // Calculate stats
   const calculateStats = () => {
+    if (!Array.isArray(expiredUnits)) {
+      return {
+        bloodTypeCount: {},
+        totalUnits: 0,
+        oldestUnit: null
+      };
+    }
+    
     const bloodTypeCount = {};
     let totalUnits = 0;
     let oldestUnit = null;
     
     expiredUnits.forEach(unit => {
       // Count by blood type
-      if (bloodTypeCount[unit.bloodType]) {
-        bloodTypeCount[unit.bloodType]++;
-      } else {
-        bloodTypeCount[unit.bloodType] = 1;
+      if (unit.bloodType) {
+        if (bloodTypeCount[unit.bloodType]) {
+          bloodTypeCount[unit.bloodType]++;
+        } else {
+          bloodTypeCount[unit.bloodType] = 1;
+        }
       }
       
       // Total count
       totalUnits++;
       
       // Find oldest unit
-      const expiryDate = new Date(unit.expirationDate);
-      if (!oldestUnit || expiryDate < new Date(oldestUnit.expirationDate)) {
-        oldestUnit = unit;
+      if (unit.expirationDate) {
+        const expiryDate = new Date(unit.expirationDate);
+        if (!oldestUnit || expiryDate < new Date(oldestUnit.expirationDate)) {
+          oldestUnit = unit;
+        }
       }
     });
     
@@ -239,19 +253,31 @@ const ExpiredUnitsManager = () => {
   
   // Format date for display
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    if (!dateString) return 'Unknown';
+    
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch (e) {
+      return 'Invalid Date';
+    }
   };
   
   // Calculate days since expiry
   const getDaysSinceExpiry = (expiryDate) => {
-    const expiry = new Date(expiryDate);
-    const today = new Date();
-    const diffTime = today - expiry;
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (!expiryDate) return 'Unknown';
+    
+    try {
+      const expiry = new Date(expiryDate);
+      const today = new Date();
+      const diffTime = today - expiry;
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    } catch (e) {
+      return 'Unknown';
+    }
   };
   
   return (
@@ -441,9 +467,9 @@ const ExpiredUnitsManager = () => {
                           <Td>
                             <Badge
                               colorScheme={
-                                unit.bloodType.includes('O') ? 'green' : 
-                                unit.bloodType.includes('A') ? 'blue' : 
-                                unit.bloodType.includes('B') ? 'orange' : 'purple'
+                                unit.bloodType?.includes('O') ? 'green' : 
+                                unit.bloodType?.includes('A') ? 'blue' : 
+                                unit.bloodType?.includes('B') ? 'orange' : 'purple'
                               }
                             >
                               {unit.bloodType}
