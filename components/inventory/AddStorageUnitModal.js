@@ -26,7 +26,7 @@ import {
 } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 
-const AddStorageUnitModal = ({ isOpen, onClose, onSuccess }) => {
+const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const toast = useToast();
   
@@ -37,28 +37,73 @@ const AddStorageUnitModal = ({ isOpen, onClose, onSuccess }) => {
     setIsSubmitting(true);
     
     try {
-      // In a real app, this would be an API call
-      // await axios.post('/api/inventory/storage', data);
+      // Create a properly formatted storage unit object
+      const storageUnitData = {
+        storageUnitId: `SU-${Date.now().toString().slice(-6)}`, // Generate a unique ID
+        name: data.name,
+        facilityId: 'FAC001', // Default facility ID
+        facilityName: data.location,
+        type: data.type,
+        location: {
+          building: data.building || 'Main Building',
+          floor: data.floor || '1',
+          room: data.room || 'Storage Room',
+          notes: data.locationNotes || ''
+        },
+        temperature: {
+          min: parseFloat(data.targetTemp) - parseFloat(data.tempRange),
+          max: parseFloat(data.targetTemp) + parseFloat(data.tempRange),
+          target: parseFloat(data.targetTemp),
+          units: 'Celsius'
+        },
+        capacity: {
+          total: parseInt(data.capacity),
+          used: 0,
+          availablePercentage: 100,
+          units: 'Units'
+        },
+        model: {
+          manufacturer: data.manufacturer,
+          modelNumber: data.modelNumber,
+          serialNumber: data.serialNumber || '',
+          year: data.year || new Date().getFullYear()
+        },
+        status: 'Operational',
+        notes: data.notes || ''
+      };
+
+      // Make the actual API call
+      const response = await fetch('/api/inventory/storage', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(storageUnitData)
+      });
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add storage unit');
+      }
+      
+      const newStorageUnit = await response.json();
       
       toast({
         title: 'Storage unit added',
-        description: `Storage unit ${data.name} has been successfully added.`,
+        description: `Storage unit ${newStorageUnit.name} has been successfully added.`,
         status: 'success',
         duration: 5000,
         isClosable: true,
       });
       
       reset(); // Reset form
-      onSuccess(); // Call success callback
+      onStorageUnitAdded(newStorageUnit); // Call success callback with the new unit
       onClose(); // Close modal
     } catch (error) {
       console.error('Error adding storage unit:', error);
       toast({
         title: 'Error',
-        description: 'Failed to add storage unit. Please try again.',
+        description: error.message || 'Failed to add storage unit. Please try again.',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -77,15 +122,15 @@ const AddStorageUnitModal = ({ isOpen, onClose, onSuccess }) => {
   const getTemperatureRangeByType = (type) => {
     switch (type) {
       case 'Refrigerator':
-        return { min: -4, max: 6, default: 4 };
-      case 'Deep Freezer':
-        return { min: -40, max: -18, default: -30 };
-      case 'Incubator':
-        return { min: 20, max: 24, default: 22 };
-      case 'Transport Container':
-        return { min: 1, max: 10, default: 4 };
-      case 'Specialized Refrigerator':
         return { min: 2, max: 6, default: 4 };
+      case 'Freezer':
+        return { min: -25, max: -18, default: -20 };
+      case 'Deep Freezer':
+        return { min: -40, max: -25, default: -30 };
+      case 'Room Temperature Storage':
+        return { min: 20, max: 24, default: 22 };
+      case 'Transport Cooler':
+        return { min: 1, max: 10, default: 4 };
       default:
         return { min: -40, max: 30, default: 4 };
     }
@@ -126,12 +171,52 @@ const AddStorageUnitModal = ({ isOpen, onClose, onSuccess }) => {
                       placeholder="Select storage type"
                     >
                       <option value="Refrigerator">Refrigerator</option>
+                      <option value="Freezer">Freezer</option>
                       <option value="Deep Freezer">Deep Freezer</option>
-                      <option value="Incubator">Incubator</option>
-                      <option value="Transport Container">Transport Container</option>
-                      <option value="Specialized Refrigerator">Specialized Refrigerator</option>
+                      <option value="Room Temperature Storage">Room Temperature Storage</option>
+                      <option value="Transport Cooler">Transport Cooler</option>
+                      <option value="Other">Other</option>
                     </Select>
                     <FormErrorMessage>{errors.type?.message}</FormErrorMessage>
+                  </FormControl>
+                </GridItem>
+              </Grid>
+              
+              <Grid templateColumns="repeat(3, 1fr)" gap={4}>
+                <GridItem>
+                  <FormControl isRequired isInvalid={errors.building}>
+                    <FormLabel>Building</FormLabel>
+                    <Input 
+                      {...register('building', { 
+                        required: 'Building is required' 
+                      })} 
+                      placeholder="Main Building"
+                    />
+                    <FormErrorMessage>{errors.building?.message}</FormErrorMessage>
+                  </FormControl>
+                </GridItem>
+                
+                <GridItem>
+                  <FormControl isInvalid={errors.floor}>
+                    <FormLabel>Floor</FormLabel>
+                    <Input 
+                      {...register('floor')} 
+                      placeholder="1"
+                    />
+                    <FormErrorMessage>{errors.floor?.message}</FormErrorMessage>
+                  </FormControl>
+                </GridItem>
+                
+                <GridItem>
+                  <FormControl isRequired isInvalid={errors.room}>
+                    <FormLabel>Room</FormLabel>
+                    <Input 
+                      {...register('room', { 
+                        required: 'Room is required' 
+                      })} 
+                      placeholder="Storage Room"
+                    />
+                    <FormErrorMessage>{errors.room?.message}</FormErrorMessage>
                   </FormControl>
                 </GridItem>
               </Grid>
@@ -184,10 +269,10 @@ const AddStorageUnitModal = ({ isOpen, onClose, onSuccess }) => {
               <Grid templateColumns="repeat(2, 1fr)" gap={4}>
                 <GridItem>
                   <FormControl isRequired isInvalid={errors.location}>
-                    <FormLabel>Location</FormLabel>
+                    <FormLabel>Facility Name</FormLabel>
                     <Input 
                       {...register('location', { 
-                        required: 'Location is required' 
+                        required: 'Facility name is required' 
                       })} 
                       placeholder="Main Facility"
                     />
