@@ -3,7 +3,7 @@ import {
   Box, Heading, FormControl, FormLabel, Select, Button,
   Stack, Checkbox, CheckboxGroup, HStack, Divider, Text,
   useColorModeValue, useToast, SimpleGrid, Card, CardBody,
-  CardHeader, Icon, VStack, Alert, AlertIcon
+  CardHeader, Icon, VStack, Alert, AlertIcon, Flex
 } from '@chakra-ui/react';
 import { FaFileAlt, FaFileExcel, FaFilePdf, FaDownload, FaChartBar } from 'react-icons/fa';
 
@@ -63,19 +63,6 @@ const InventoryReportGenerator = () => {
         return 'Focused report on blood types currently in critical shortage or below target levels.';
       default:
         return '';
-    }
-  };
-  
-  const getReportIcon = (type) => {
-    switch (type) {
-      case 'pdf':
-        return FaFilePdf;
-      case 'excel':
-        return FaFileExcel;
-      case 'csv':
-        return FaFileAlt;
-      default:
-        return FaFileAlt;
     }
   };
   
