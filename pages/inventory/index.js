@@ -1,11 +1,6 @@
 import { useState } from 'react';
 import {
   Box,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
   Container,
   Heading,
   Text
@@ -16,11 +11,6 @@ import { useSession } from 'next-auth/react';
 
 const InventoryDashboardPage = () => {
   const { data: session, status } = useSession();
-  const [tabIndex, setTabIndex] = useState(0);
-
-  const handleTabsChange = (index) => {
-    setTabIndex(index);
-  };
 
   if (status === 'loading') {
     return (
@@ -52,23 +42,7 @@ const InventoryDashboardPage = () => {
           Blood Inventory Management
         </Heading>
         
-        <Tabs 
-          isFitted 
-          variant="enclosed" 
-          colorScheme="blue" 
-          index={tabIndex} 
-          onChange={handleTabsChange}
-          isLazy
-        >
-          <TabList mb={4}>
-            <Tab>Dashboard</Tab>
-          </TabList>
-          <TabPanels>
-            <TabPanel p={0}>
-              <BloodInventoryDashboard />
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
+        <BloodInventoryDashboard />
       </Container>
     </Layout>
   );
