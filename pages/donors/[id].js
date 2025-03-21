@@ -1,283 +1,375 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { 
-  Box, 
-  Tabs, 
-  TabList, 
-  TabPanels, 
-  Tab, 
-  TabPanel,
-  Heading,
-  Flex,
+import {
+  Box,
   Button,
-  Spinner,
-  Text,
-  useToast,
-  Badge,
+  Container,
+  Flex,
   Grid,
   GridItem,
-  Divider
+  Heading,
+  Text,
+  Stack,
+  Divider,
+  Badge,
+  Spinner,
+  useToast,
+  useDisclosure,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
 } from '@chakra-ui/react';
-import { ArrowBackIcon, EditIcon } from '@chakra-ui/icons';
-import DonationHistoryView from '@/components/donors/DonationHistoryView';
-import EligibilityCheckView from '@/components/donors/EligibilityCheckView';
+import { ArrowBackIcon, EditIcon, DeleteIcon } from '@chakra-ui/icons';
+import axios from 'axios';
+import React from 'react';
 
-const DonorDetailsPage = () => {
+const DonorDetailPage = () => {
   const router = useRouter();
   const { id } = router.query;
+  const toast = useToast();
   const [donor, setDonor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const toast = useToast();
+  
+  // Alert dialog for delete confirmation
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const cancelRef = React.useRef();
 
   useEffect(() => {
-    if (id) {
-      fetchDonor();
-    }
-  }, [id]);
-
-  const fetchDonor = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/donors/${id}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch donor details');
+    if (!id) return;
+    
+    const fetchDonor = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`/api/donors/${id}`);
+        setDonor(response.data);
+        setError(null);
+      } catch (error) {
+        console.error('Error fetching donor:', error);
+        setError('Failed to load donor information');
+        toast({
+          title: 'Error',
+          description: 'Failed to load donor information',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      } finally {
+        setLoading(false);
       }
-      const data = await response.json();
-      setDonor(data.data);
+    };
+
+    fetchDonor();
+  }, [id, toast]);
+
+  const handleDelete = async () => {
+    try {
+      await axios.delete(`/api/donors/${id}`);
+      
+      toast({
+        title: 'Donor deleted',
+        description: 'Donor has been successfully removed',
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
+      
+      router.push('/donors');
     } catch (error) {
-      setError(error.message);
+      console.error('Error deleting donor:', error);
       toast({
         title: 'Error',
-        description: error.message,
+        description: 'Failed to delete donor',
         status: 'error',
         duration: 5000,
         isClosable: true,
       });
     } finally {
-      setLoading(false);
+      onClose();
     }
-  };
-
-  const handleEdit = () => {
-    router.push(`/donors/edit/${id}`);
   };
 
   const getStatusBadge = (status) => {
-    switch(status) {
-      case 'Active':
-        return <Badge colorScheme="green">{status}</Badge>;
-      case 'Deferred':
-        return <Badge colorScheme="orange">{status}</Badge>;
-      case 'Inactive':
-        return <Badge colorScheme="gray">{status}</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
+    const statusProps = {
+      active: { colorScheme: 'green', text: 'Active' },
+      pending: { colorScheme: 'yellow', text: 'Pending' },
+      deferred: { colorScheme: 'orange', text: 'Deferred' },
+      ineligible: { colorScheme: 'red', text: 'Ineligible' },
+    };
+    
+    const { colorScheme, text } = statusProps[status] || { colorScheme: 'gray', text: status };
+    
+    return (
+      <Badge colorScheme={colorScheme} borderRadius="full" px={2}>
+        {text}
+      </Badge>
+    );
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  if (loading) {
+    return (
+      <Container maxW="container.xl" py={6}>
+        <Flex align="center" mb={6}>
+          <Button
+            leftIcon={<ArrowBackIcon />}
+            variant="ghost"
+            onClick={() => router.push('/donors')}
+            size="sm"
+          >
+            Back to Donors
+          </Button>
+        </Flex>
+        <Box textAlign="center" py={10}>
+          <Spinner size="xl" />
+          <Heading size="md" mt={4}>Loading donor information...</Heading>
+        </Box>
+      </Container>
+    );
+  }
+
+  if (error || !donor) {
+    return (
+      <Container maxW="container.xl" py={6}>
+        <Flex align="center" mb={6}>
+          <Button
+            leftIcon={<ArrowBackIcon />}
+            variant="ghost"
+            onClick={() => router.push('/donors')}
+            size="sm"
+          >
+            Back to Donors
+          </Button>
+        </Flex>
+        <Box textAlign="center" py={10}>
+          <Heading size="md" color="red.500">{error || 'Donor not found'}</Heading>
+          <Button
+            mt={4}
+            colorScheme="blue"
+            onClick={() => router.push('/donors')}
+          >
+            Return to Donors List
+          </Button>
+        </Box>
+      </Container>
+    );
+  }
+
   return (
-    <Box maxW="container.xl" mx="auto" py={6}>
-      <Flex mb={6} alignItems="center">
-        <Button 
-          leftIcon={<ArrowBackIcon />} 
-          variant="ghost" 
+    <Container maxW="container.xl" py={6}>
+      <Flex align="center" justify="space-between" mb={6}>
+        <Button
+          leftIcon={<ArrowBackIcon />}
+          variant="ghost"
           onClick={() => router.push('/donors')}
-          mr={4}
+          size="sm"
         >
-          Back to List
+          Back to Donors
         </Button>
         
-        {donor && (
-          <Flex justify="space-between" flex="1" alignItems="center">
-            <Box>
-              <Heading size="lg">
-                {donor.firstName} {donor.lastName}
-              </Heading>
-              <Flex mt={1} alignItems="center" gap={2}>
-                <Text color="gray.600">{donor.donorId}</Text>
-                <Badge colorScheme={donor.bloodType.includes('-') ? 'purple' : 'red'}>
-                  {donor.bloodType}
-                </Badge>
-                {getStatusBadge(donor.status)}
-              </Flex>
-            </Box>
-            <Button
-              leftIcon={<EditIcon />}
-              colorScheme="blue"
-              onClick={handleEdit}
-            >
-              Edit
-            </Button>
-          </Flex>
-        )}
+        <Stack direction="row" spacing={2}>
+          <Button
+            leftIcon={<EditIcon />}
+            colorScheme="blue"
+            variant="outline"
+            onClick={() => router.push(`/donors/edit/${id}`)}
+          >
+            Edit
+          </Button>
+          <Button
+            leftIcon={<DeleteIcon />}
+            colorScheme="red"
+            variant="outline"
+            onClick={onOpen}
+          >
+            Delete
+          </Button>
+        </Stack>
       </Flex>
-
-      {loading ? (
-        <Flex justify="center" align="center" height="200px">
-          <Spinner size="xl" />
+      
+      <Box p={5} shadow="md" borderWidth="1px" borderRadius="md" bg="white">
+        <Flex align="center" justify="space-between" mb={4}>
+          <Heading size="lg">{donor.firstName} {donor.lastName}</Heading>
+          <Box>{getStatusBadge(donor.status)}</Box>
         </Flex>
-      ) : error ? (
-        <Text color="red.500">Error: {error}</Text>
-      ) : donor ? (
-        <Tabs colorScheme="blue">
-          <TabList>
-            <Tab>Eligibility</Tab>
-            <Tab>Donations</Tab>
-            <Tab>Medical History</Tab>
-            <Tab>Personal Info</Tab>
-          </TabList>
+        
+        <Text color="gray.600" fontWeight="medium" fontSize="sm" mb={6}>
+          Donor ID: {donor.donorId || 'Not assigned'} | Registered: {formatDate(donor.createdAt)}
+        </Text>
+        
+        <Divider mb={6} />
+        
+        <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={6}>
+          <GridItem>
+            <Heading size="md" mb={4}>Personal Information</Heading>
+            
+            <Stack spacing={3}>
+              <Flex>
+                <Text fontWeight="bold" width="150px">Date of Birth:</Text>
+                <Text>{formatDate(donor.dateOfBirth)}</Text>
+              </Flex>
+              
+              <Flex>
+                <Text fontWeight="bold" width="150px">Gender:</Text>
+                <Text>{donor.gender?.charAt(0).toUpperCase() + donor.gender?.slice(1)}</Text>
+              </Flex>
+              
+              <Flex>
+                <Text fontWeight="bold" width="150px">Blood Type:</Text>
+                <Text>{donor.bloodType}</Text>
+              </Flex>
+              
+              <Flex>
+                <Text fontWeight="bold" width="150px">Occupation:</Text>
+                <Text>{donor.occupation || 'Not specified'}</Text>
+              </Flex>
+            </Stack>
+          </GridItem>
+          
+          <GridItem>
+            <Heading size="md" mb={4}>Contact Information</Heading>
+            
+            <Stack spacing={3}>
+              <Flex>
+                <Text fontWeight="bold" width="150px">Email:</Text>
+                <Text>{donor.email}</Text>
+              </Flex>
+              
+              <Flex>
+                <Text fontWeight="bold" width="150px">Phone:</Text>
+                <Text>{donor.phone}</Text>
+              </Flex>
+              
+              <Flex>
+                <Text fontWeight="bold" width="150px">Address:</Text>
+                <Text>
+                  {donor.address ? (
+                    <>
+                      {donor.address}<br />
+                      {donor.city}{donor.state ? `, ${donor.state}` : ''} {donor.postalCode}
+                    </>
+                  ) : (
+                    'Not specified'
+                  )}
+                </Text>
+              </Flex>
+            </Stack>
+          </GridItem>
+          
+          {donor.emergencyContactName && (
+            <GridItem>
+              <Heading size="md" mb={4}>Emergency Contact</Heading>
+              
+              <Stack spacing={3}>
+                <Flex>
+                  <Text fontWeight="bold" width="150px">Name:</Text>
+                  <Text>{donor.emergencyContactName}</Text>
+                </Flex>
+                
+                <Flex>
+                  <Text fontWeight="bold" width="150px">Phone:</Text>
+                  <Text>{donor.emergencyContactPhone || 'Not specified'}</Text>
+                </Flex>
+                
+                <Flex>
+                  <Text fontWeight="bold" width="150px">Relationship:</Text>
+                  <Text>{donor.emergencyContactRelationship || 'Not specified'}</Text>
+                </Flex>
+              </Stack>
+            </GridItem>
+          )}
+          
+          <GridItem>
+            <Heading size="md" mb={4}>Health Information</Heading>
+            
+            <Stack spacing={3}>
+              {donor.weight && (
+                <Flex>
+                  <Text fontWeight="bold" width="150px">Weight:</Text>
+                  <Text>{donor.weight} kg</Text>
+                </Flex>
+              )}
+              
+              {donor.height && (
+                <Flex>
+                  <Text fontWeight="bold" width="150px">Height:</Text>
+                  <Text>{donor.height} cm</Text>
+                </Flex>
+              )}
+              
+              {donor.hasRecentIllness && (
+                <Flex>
+                  <Text fontWeight="bold" width="150px">Recent Illness:</Text>
+                  <Text>{donor.recentIllnessDetails || 'Yes'}</Text>
+                </Flex>
+              )}
+              
+              {donor.hasChronicDisease && (
+                <Flex>
+                  <Text fontWeight="bold" width="150px">Chronic Disease:</Text>
+                  <Text>{donor.chronicDiseaseDetails || 'Yes'}</Text>
+                </Flex>
+              )}
+              
+              {donor.isTakingMedication && (
+                <Flex>
+                  <Text fontWeight="bold" width="150px">Medications:</Text>
+                  <Text>{donor.medicationDetails || 'Yes'}</Text>
+                </Flex>
+              )}
+              
+              {donor.hasPreviousDonation && (
+                <Flex>
+                  <Text fontWeight="bold" width="150px">Previous Donation:</Text>
+                  <Text>{donor.previousDonationDetails || 'Yes'}</Text>
+                </Flex>
+              )}
+            </Stack>
+          </GridItem>
+        </Grid>
+      </Box>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        isOpen={isOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onClose}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Delete Donor
+            </AlertDialogHeader>
 
-          <TabPanels>
-            <TabPanel>
-              <EligibilityCheckView donorId={id} />
-            </TabPanel>
-            <TabPanel>
-              <DonationHistoryView donorId={id} />
-            </TabPanel>
-            <TabPanel>
-              <Box p={4}>
-                <Heading size="md" mb={4}>Medical History</Heading>
-                <Text color="gray.500">Medical history feature coming soon.</Text>
-              </Box>
-            </TabPanel>
-            <TabPanel>
-              <Box p={4}>
-                <Heading size="md" mb={4}>Personal Information</Heading>
-                <Grid templateColumns="repeat(2, 1fr)" gap={6}>
-                  <GridItem>
-                    <Box mb={6}>
-                      <Heading size="sm" mb={3}>Basic Information</Heading>
-                      <Grid templateColumns="120px 1fr" gap={2}>
-                        <Text fontWeight="bold">ID:</Text>
-                        <Text>{donor.donorId}</Text>
-                        
-                        <Text fontWeight="bold">Full Name:</Text>
-                        <Text>{donor.firstName} {donor.lastName}</Text>
-                        
-                        <Text fontWeight="bold">Gender:</Text>
-                        <Text>{donor.gender}</Text>
-                        
-                        <Text fontWeight="bold">Date of Birth:</Text>
-                        <Text>{new Date(donor.dateOfBirth).toLocaleDateString()}</Text>
-                        
-                        <Text fontWeight="bold">Blood Type:</Text>
-                        <Badge colorScheme={donor.bloodType.includes('-') ? 'purple' : 'red'}>
-                          {donor.bloodType}
-                        </Badge>
-                        
-                        <Text fontWeight="bold">Status:</Text>
-                        {getStatusBadge(donor.status)}
-                        
-                        <Text fontWeight="bold">Registered:</Text>
-                        <Text>{new Date(donor.registrationDate).toLocaleDateString()}</Text>
-                      </Grid>
-                    </Box>
-                    
-                    <Divider mb={6} />
-                    
-                    <Box>
-                      <Heading size="sm" mb={3}>Donation Statistics</Heading>
-                      <Grid templateColumns="180px 1fr" gap={2}>
-                        <Text fontWeight="bold">Total Donations:</Text>
-                        <Text>{donor.donationCount || 0}</Text>
-                        
-                        <Text fontWeight="bold">Last Donation:</Text>
-                        <Text>
-                          {donor.lastDonationDate 
-                            ? new Date(donor.lastDonationDate).toLocaleDateString() 
-                            : 'Never'
-                          }
-                        </Text>
-                      </Grid>
-                    </Box>
-                  </GridItem>
-                  
-                  <GridItem>
-                    <Box mb={6}>
-                      <Heading size="sm" mb={3}>Contact Information</Heading>
-                      <Grid templateColumns="120px 1fr" gap={2}>
-                        <Text fontWeight="bold">Email:</Text>
-                        <Text>{donor.email || 'Not provided'}</Text>
-                        
-                        <Text fontWeight="bold">Phone:</Text>
-                        <Text>{donor.phone}</Text>
-                      </Grid>
-                    </Box>
-                    
-                    <Divider mb={6} />
-                    
-                    <Box mb={6}>
-                      <Heading size="sm" mb={3}>Address</Heading>
-                      <Grid templateColumns="120px 1fr" gap={2}>
-                        <Text fontWeight="bold">Street:</Text>
-                        <Text>{donor.address.street}</Text>
-                        
-                        <Text fontWeight="bold">City:</Text>
-                        <Text>{donor.address.city}</Text>
-                        
-                        <Text fontWeight="bold">State:</Text>
-                        <Text>{donor.address.state}</Text>
-                        
-                        <Text fontWeight="bold">Zip Code:</Text>
-                        <Text>{donor.address.zipCode}</Text>
-                        
-                        <Text fontWeight="bold">Country:</Text>
-                        <Text>{donor.address.country}</Text>
-                      </Grid>
-                    </Box>
-                    
-                    <Divider mb={6} />
-                    
-                    <Box>
-                      <Heading size="sm" mb={3}>Emergency Contact</Heading>
-                      <Grid templateColumns="120px 1fr" gap={2}>
-                        <Text fontWeight="bold">Name:</Text>
-                        <Text>{donor.emergencyContact.name}</Text>
-                        
-                        <Text fontWeight="bold">Relationship:</Text>
-                        <Text>{donor.emergencyContact.relationship}</Text>
-                        
-                        <Text fontWeight="bold">Phone:</Text>
-                        <Text>{donor.emergencyContact.phone}</Text>
-                      </Grid>
-                    </Box>
-                  </GridItem>
-                </Grid>
-                
-                {donor.notes && (
-                  <Box mt={6}>
-                    <Heading size="sm" mb={3}>Notes</Heading>
-                    <Box p={4} bg="gray.50" borderRadius="md">
-                      <Text>{donor.notes}</Text>
-                    </Box>
-                  </Box>
-                )}
-                
-                <Box mt={6}>
-                  <Heading size="sm" mb={3}>Communication Preferences</Heading>
-                  <Flex wrap="wrap" gap={4}>
-                    <Badge colorScheme={donor.communicationPreferences?.email ? 'green' : 'gray'}>
-                      Email: {donor.communicationPreferences?.email ? 'Yes' : 'No'}
-                    </Badge>
-                    <Badge colorScheme={donor.communicationPreferences?.sms ? 'green' : 'gray'}>
-                      SMS: {donor.communicationPreferences?.sms ? 'Yes' : 'No'}
-                    </Badge>
-                    <Badge colorScheme={donor.communicationPreferences?.phone ? 'green' : 'gray'}>
-                      Phone: {donor.communicationPreferences?.phone ? 'Yes' : 'No'}
-                    </Badge>
-                    <Badge colorScheme={donor.communicationPreferences?.post ? 'green' : 'gray'}>
-                      Post: {donor.communicationPreferences?.post ? 'Yes' : 'No'}
-                    </Badge>
-                  </Flex>
-                </Box>
-              </Box>
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
-      ) : null}
-    </Box>
+            <AlertDialogBody>
+              Are you sure you want to delete {donor.firstName} {donor.lastName}? 
+              This action cannot be undone.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onClose}>
+                Cancel
+              </Button>
+              <Button colorScheme="red" onClick={handleDelete} ml={3}>
+                Delete
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
+    </Container>
   );
 };
 
-export default DonorDetailsPage;
+export default DonorDetailPage;
