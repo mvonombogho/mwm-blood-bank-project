@@ -34,6 +34,10 @@ import {
   Radio,
   RadioGroup,
   HStack,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
 } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/router';
@@ -44,6 +48,7 @@ const DonorForm = ({ donorId = null, initialData = null }) => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [tabIndex, setTabIndex] = useState(0);
+  const [formError, setFormError] = useState(null);
   const isEditMode = !!donorId;
   
   const { register, handleSubmit, setValue, watch, formState: { errors, isDirty, isValid } } = useForm({
@@ -111,6 +116,7 @@ const DonorForm = ({ donorId = null, initialData = null }) => {
             setValue('dateOfBirth', date.toISOString().split('T')[0]);
           }
         } catch (error) {
+          console.error('Error fetching donor:', error);
           toast({
             title: 'Error fetching donor data',
             description: error.response?.data?.message || 'Could not load donor information',
@@ -131,6 +137,18 @@ const DonorForm = ({ donorId = null, initialData = null }) => {
   const onSubmit = async (data) => {
     try {
       setLoading(true);
+      setFormError(null);
+      
+      // Format date properly
+      if (data.dateOfBirth) {
+        data.dateOfBirth = new Date(data.dateOfBirth).toISOString();
+      }
+      
+      // Convert string values to numbers where needed
+      if (data.weight) data.weight = Number(data.weight);
+      if (data.height) data.height = Number(data.height);
+      
+      console.log('Submitting donor data:', data);
       
       let response;
       if (isEditMode) {
@@ -146,7 +164,7 @@ const DonorForm = ({ donorId = null, initialData = null }) => {
         response = await axios.post('/api/donors', data);
         toast({
           title: 'Donor added',
-          description: `${data.firstName} ${data.lastName} has been added as a donor`,
+          description: `${data.firstName} ${data.lastName} has been successfully registered as a donor`,
           status: 'success',
           duration: 5000,
           isClosable: true,
@@ -155,13 +173,30 @@ const DonorForm = ({ donorId = null, initialData = null }) => {
       
       router.push(`/donors/${response.data._id}`);
     } catch (error) {
-      toast({
-        title: `Error ${isEditMode ? 'updating' : 'adding'} donor`,
-        description: error.response?.data?.message || `Could not ${isEditMode ? 'update' : 'add'} donor information`,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+      console.error('Form submission error:', error);
+      
+      // Handle different types of errors
+      if (error.response?.data?.errors) {
+        // Validation errors from the API
+        setFormError({
+          title: 'Validation Error',
+          message: 'Please check the form for errors',
+          errors: error.response.data.errors
+        });
+        
+        // Move to the tab with errors
+        // This is simplified and would need more logic for a real app
+        setTabIndex(0);
+      } else {
+        // General error
+        toast({
+          title: `Error ${isEditMode ? 'updating' : 'adding'} donor`,
+          description: error.response?.data?.message || `Could not ${isEditMode ? 'update' : 'add'} donor information`,
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -184,6 +219,25 @@ const DonorForm = ({ donorId = null, initialData = null }) => {
       <Heading size="lg" mb={6}>
         {isEditMode ? 'Edit Donor Information' : 'Register New Donor'}
       </Heading>
+      
+      {formError && (
+        <Alert status="error" mb={6} borderRadius="md">
+          <AlertIcon />
+          <Box flex="1">
+            <AlertTitle>{formError.title}</AlertTitle>
+            <AlertDescription display="block">
+              {formError.message}
+              {formError.errors && (
+                <ul style={{ marginTop: '8px' }}>
+                  {Object.entries(formError.errors).map(([field, message]) => (
+                    <li key={field}>{message}</li>
+                  ))}
+                </ul>
+              )}
+            </AlertDescription>
+          </Box>
+        </Alert>
+      )}
       
       <Tabs index={tabIndex} onChange={handleTabChange} colorScheme="blue" variant="enclosed">
         <TabList>
