@@ -1,19 +1,14 @@
-import { connectToDatabase } from '../../../../lib/mongodb';
+import dbConnect from '../../../../lib/mongodb';
 import BloodUnit from '../../../../models/BloodUnit';
-import { getSession } from 'next-auth/react';
+import withAuth from '../../../../lib/middlewares/withAuth';
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'PUT') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
-    const session = await getSession({ req });
-    if (!session) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    await connectToDatabase();
+    await dbConnect();
 
     const { unitIds, status, notes } = req.body;
 
@@ -35,7 +30,7 @@ export default async function handler(req, res) {
     const statusHistoryEntry = {
       status,
       date: new Date(),
-      updatedBy: session.user.name || session.user.email,
+      updatedBy: req.user?.name || req.user?.email || 'System',
       notes: notes || ''
     };
 
@@ -80,3 +75,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 }
+
+export default withAuth(handler, { requiredPermission: 'canManageInventory' });
