@@ -1,4 +1,4 @@
-import dbConnect from '../../../lib/dbConnect';
+import { connectToDatabase } from '../../../lib/mongodb';
 import BloodUnit from '../../../models/BloodUnit';
 import Storage from '../../../models/Storage';
 import StorageLog from '../../../models/StorageLog';
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    await dbConnect();
+    await connectToDatabase();
 
     // Calculate current date and thresholds
     const currentDate = new Date();
