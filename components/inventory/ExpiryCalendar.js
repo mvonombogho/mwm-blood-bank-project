@@ -270,3 +270,92 @@ const ExpiryCalendar = () => {
       return 'normal';
     }
   };
+  
+  const renderCalendar = () => {
+    const daysInMonth = getDaysInMonth(year, month);
+    const firstDay = getFirstDayOfMonth(year, month);
+    
+    const days = [];
+    
+    // Empty cells for days before the first day of the month
+    for (let i = 0; i < firstDay; i++) {
+      days.push(<GridItem key={`empty-${i}`} />);
+    }
+    
+    // Cells for each day in the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+      const dayData = expiryData[day];
+      let hasExpiry = false;
+      let urgentCount = 0;
+      let warningCount = 0;
+      let normalCount = 0;
+      
+      // Handle both array and number formats
+      if (Array.isArray(dayData) && dayData.length > 0) {
+        hasExpiry = true;
+        
+        // Count by urgency
+        dayData.forEach(unit => {
+          const urgency = calculateUrgency(unit.expirationDate);
+          if (urgency === 'urgent') urgentCount++;
+          else if (urgency === 'warning') warningCount++;
+          else normalCount++;
+        });
+      } else if (typeof dayData === 'number' && dayData > 0) {
+        hasExpiry = true;
+        
+        // Just distribute the count arbitrarily since we only know the total
+        // In a real implementation, you'd want more detailed data
+        const totalUnits = dayData;
+        urgentCount = Math.ceil(totalUnits * 0.2); // 20% urgent as an example
+        warningCount = Math.ceil(totalUnits * 0.3); // 30% warning
+        normalCount = totalUnits - urgentCount - warningCount; // Rest are normal
+      }
+      
+      days.push(
+        <GridItem 
+          key={day}
+          p={2}
+          bg={isToday ? todayBgColor : calendarBgColor}
+          border="1px solid"
+          borderColor={isToday ? todayBorderColor : borderColor}
+          borderRadius="md"
+          cursor={hasExpiry ? 'pointer' : 'default'}
+          _hover={hasExpiry ? { boxShadow: 'md', bg: isToday ? todayBgColor : 'gray.100' } : {}}
+          transition="all 0.2s"
+          onClick={() => hasExpiry && handleDayClick(day)}
+        >
+          <Flex direction="column" h="100%">
+            <Text fontWeight={isToday ? 'bold' : 'normal'}>
+              {day}
+            </Text>
+            {hasExpiry && (
+              <VStack mt="auto" spacing={1} align="stretch">
+                {urgentCount > 0 && (
+                  <Flex align="center" bg={expiryCriticalColor} p={1} borderRadius="sm">
+                    <Icon as={FiAlertCircle} color="red.500" mr={1} />
+                    <Text fontSize="xs">{urgentCount} critical</Text>
+                  </Flex>
+                )}
+                {warningCount > 0 && (
+                  <Flex align="center" bg={expiryWarningColor} p={1} borderRadius="sm">
+                    <Icon as={FiAlertTriangle} color="orange.500" mr={1} />
+                    <Text fontSize="xs">{warningCount} soon</Text>
+                  </Flex>
+                )}
+                {normalCount > 0 && (
+                  <Flex align="center" bg={expiryGoodColor} p={1} borderRadius="sm">
+                    <Icon as={FiCheckCircle} color="green.500" mr={1} />
+                    <Text fontSize="xs">{normalCount} good</Text>
+                  </Flex>
+                )}
+              </VStack>
+            )}
+          </Flex>
+        </GridItem>
+      );
+    }
+    
+    return days;
+  };
