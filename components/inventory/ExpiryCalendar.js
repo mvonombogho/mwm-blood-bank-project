@@ -359,3 +359,188 @@ const ExpiryCalendar = () => {
     
     return days;
   };
+  
+  // Calculate days until expiry
+  const calculateDaysUntilExpiry = (expirationDate) => {
+    if (!expirationDate) return 'N/A';
+    
+    try {
+      const expiry = new Date(expirationDate);
+      const todayDate = new Date();
+      const diffTime = expiry - todayDate;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      return diffDays;
+    } catch (e) {
+      return 'N/A';
+    }
+  };
+  
+  // Return the main component JSX
+  return (
+    <Box>
+      {error && (
+        <Alert status="error" mb={4} borderRadius="md">
+          <AlertIcon />
+          <Text>{error}</Text>
+        </Alert>
+      )}
+      
+      <Card bg={bgColor} boxShadow="md" borderRadius="lg" mb={6}>
+        <CardHeader pb={0}>
+          <Flex justify="space-between" align="center">
+            <Heading size="md">Expiration Calendar</Heading>
+            
+            <Select 
+              placeholder="Filter by blood type" 
+              value={bloodTypeFilter}
+              onChange={(e) => setBloodTypeFilter(e.target.value)}
+              maxW="200px"
+            >
+              <option value="">All Types</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+            </Select>
+          </Flex>
+        </CardHeader>
+        <CardBody>
+          <HStack justify="space-between" mb={4}>
+            <Button leftIcon={<FiChevronLeft />} onClick={handlePreviousMonth} size="sm">
+              Previous
+            </Button>
+            <Heading size="md">
+              {months[month]} {year}
+            </Heading>
+            <Button rightIcon={<FiChevronRight />} onClick={handleNextMonth} size="sm">
+              Next
+            </Button>
+          </HStack>
+          
+          {loading ? (
+            <Flex justify="center" align="center" h="300px">
+              <Spinner size="xl" color="blue.500" />
+            </Flex>
+          ) : (
+            <Box>
+              <Grid 
+                templateColumns="repeat(7, 1fr)" 
+                gap={2}
+                mb={2}
+              >
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <GridItem key={day} textAlign="center" fontWeight="bold">
+                    <Text>{day}</Text>
+                  </GridItem>
+                ))}
+              </Grid>
+              
+              <Grid 
+                templateColumns="repeat(7, 1fr)" 
+                gap={2}
+                templateRows={`repeat(${Math.ceil((getDaysInMonth(year, month) + getFirstDayOfMonth(year, month)) / 7)}, 100px)`}
+              >
+                {renderCalendar()}
+              </Grid>
+            </Box>
+          )}
+          
+          <Box mt={6}>
+            <Heading size="sm" mb={3}>Expiry Legend</Heading>
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+              <Flex align="center" bg={expiryCriticalColor} p={2} borderRadius="md">
+                <Icon as={FiAlertCircle} color="red.500" mr={2} />
+                <Text fontSize="sm">Critical: Expires within 2 days</Text>
+              </Flex>
+              <Flex align="center" bg={expiryWarningColor} p={2} borderRadius="md">
+                <Icon as={FiAlertTriangle} color="orange.500" mr={2} />
+                <Text fontSize="sm">Warning: Expires within 7 days</Text>
+              </Flex>
+              <Flex align="center" bg={expiryGoodColor} p={2} borderRadius="md">
+                <Icon as={FiCheckCircle} color="green.500" mr={2} />
+                <Text fontSize="sm">Good: Expires after 7 days</Text>
+              </Flex>
+            </SimpleGrid>
+          </Box>
+        </CardBody>
+      </Card>
+      
+      {/* Day Detail Modal */}
+      <Modal isOpen={isOpen} onClose={onClose} size="xl">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            Expiring Units on {months[month]} {selectedDay}, {year}
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            {selectedDayUnits.length === 0 ? (
+              <Text>No units found matching your criteria.</Text>
+            ) : (
+              <Table variant="simple" size="sm">
+                <Thead>
+                  <Tr>
+                    <Th>Unit ID</Th>
+                    <Th>Blood Type</Th>
+                    <Th>Collection Date</Th>
+                    <Th>Expiry Date</Th>
+                    <Th>Status</Th>
+                    <Th>Days Left</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {selectedDayUnits.map((unit) => {
+                    const diffDays = calculateDaysUntilExpiry(unit.expirationDate);
+                    
+                    let badgeColor = 'green';
+                    if (diffDays <= 2) badgeColor = 'red';
+                    else if (diffDays <= 7) badgeColor = 'orange';
+                    
+                    return (
+                      <Tr key={unit._id || unit.unitId}>
+                        <Td>{unit.unitId}</Td>
+                        <Td>
+                          <Badge>{unit.bloodType}</Badge>
+                        </Td>
+                        <Td>{formatDate(new Date(unit.collectionDate))}</Td>
+                        <Td>{formatDate(new Date(unit.expirationDate))}</Td>
+                        <Td>
+                          <Badge colorScheme={
+                            unit.status === 'Available' ? 'green' :
+                            unit.status === 'Reserved' ? 'blue' :
+                            unit.status === 'Quarantined' ? 'yellow' :
+                            unit.status === 'Discarded' ? 'red' :
+                            unit.status === 'Transfused' ? 'purple' : 'gray'
+                          }>
+                            {unit.status}
+                          </Badge>
+                        </Td>
+                        <Td>
+                          <Badge colorScheme={badgeColor}>
+                            {diffDays === 'N/A' ? 'Unknown' : `${diffDays} day${diffDays !== 1 ? 's' : ''}`}
+                          </Badge>
+                        </Td>
+                      </Tr>
+                    );
+                  })}
+                </Tbody>
+              </Table>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button colorScheme="blue" mr={3} onClick={onClose}>
+              Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </Box>
+  );
+};
+
+export default ExpiryCalendar;
