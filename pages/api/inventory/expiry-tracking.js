@@ -16,26 +16,39 @@ async function handler(req, res) {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 20;
     const skip = (page - 1) * limit;
+    const isExpired = req.query.expired === 'true';
+    const customDate = req.query.date ? new Date(req.query.date) : null;
     
     // Calculate date thresholds
-    const today = new Date();
-    const future = new Date();
+    const today = customDate || new Date();
+    const future = new Date(today);
     future.setDate(today.getDate() + days);
     
     // For critical flag, get units expiring within 7 days
     const critical = req.query.critical === 'true';
     const criticalDays = 7;
-    const criticalDate = new Date();
+    const criticalDate = new Date(today);
     criticalDate.setDate(today.getDate() + criticalDays);
     
-    // Build filter
-    const filter = {
-      status: 'Available',
-      expirationDate: {
-        $gte: today,
-        $lte: critical ? criticalDate : future
-      }
-    };
+    // Build filter based on whether we want expired or expiring units
+    let filter;
+    
+    if (isExpired) {
+      // Get units that have expired but still have status 'Available'
+      filter = {
+        status: { $nin: ['Discarded', 'Transfused'] }, // Exclude already processed units
+        expirationDate: { $lt: today }
+      };
+    } else {
+      // Get units that will expire in the future
+      filter = {
+        status: 'Available',
+        expirationDate: {
+          $gte: today,
+          $lte: critical ? criticalDate : future
+        }
+      };
+    }
     
     // Add blood type filter if provided
     if (req.query.bloodType) {
@@ -49,13 +62,28 @@ async function handler(req, res) {
     
     // Query with pagination
     const expiringUnits = await BloodUnit.find(filter)
-      .sort({ expirationDate: 1 }) // Sort by expiration date, soonest first
+      .sort({ expirationDate: isExpired ? 1 : 1 }) // Sort by expiration date, soonest first
       .skip(skip)
       .limit(limit)
       .populate('donorId', 'firstName lastName bloodType');
     
     // Get total count for pagination
     const total = await BloodUnit.countDocuments(filter);
+    
+    if (isExpired) {
+      // For expired units, return a simpler response
+      return res.status(200).json({
+        expiringUnits,
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit)
+        }
+      });
+    }
+    
+    // For upcoming expirations, proceed with the detailed summary
     
     // Group by expiry category for summary
     const [critical3days, warning7days, caution30days] = await Promise.all([
