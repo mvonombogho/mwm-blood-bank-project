@@ -1,18 +1,13 @@
-import { connectToDatabase } from '../../../../lib/mongodb';
+import dbConnect from '../../../../lib/mongodb';
 import Storage from '../../../../models/Storage';
 import StorageLog from '../../../../models/StorageLog';
-import { getSession } from 'next-auth/react';
+import withAuth from '../../../../lib/middlewares/withAuth';
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const { method } = req;
 
   try {
-    const session = await getSession({ req });
-    if (!session) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    await connectToDatabase();
+    await dbConnect();
 
     switch (method) {
       case 'GET':
@@ -41,22 +36,28 @@ export default async function handler(req, res) {
         } = req.body;
 
         // Validate required fields
-        if (!storageUnitId || !name || !facilityId || !facilityName || !type) {
-          return res.status(400).json({ message: 'Missing required fields' });
+        if (!name || !type) {
+          return res.status(400).json({ 
+            message: 'Missing required fields', 
+            requiredFields: ['name', 'type'] 
+          });
         }
 
+        // Generate storageUnitId if not provided
+        const newStorageUnitId = storageUnitId || `SU-${Date.now().toString().slice(-6)}`;
+        
         // Check if storage unit ID already exists
-        const existingUnit = await Storage.findOne({ storageUnitId });
+        const existingUnit = await Storage.findOne({ storageUnitId: newStorageUnitId });
         if (existingUnit) {
           return res.status(400).json({ message: 'Storage unit ID already exists' });
         }
 
         // Create new storage unit
         const newStorageUnit = new Storage({
-          storageUnitId,
+          storageUnitId: newStorageUnitId,
           name,
-          facilityId,
-          facilityName,
+          facilityId: facilityId || 'FAC001',
+          facilityName: facilityName || 'Main Facility',
           type,
           location: location || {},
           temperature: temperature || { min: 2, max: 8, target: 4, units: 'Celsius' },
@@ -79,12 +80,12 @@ export default async function handler(req, res) {
 
         // Create initial storage log
         const newStorageLog = new StorageLog({
-          storageUnitId,
-          facilityId,
+          storageUnitId: newStorageUnitId,
+          facilityId: facilityId || 'FAC001',
           readings: [{
             temperature: temperature?.target || 4,
             recordedAt: new Date(),
-            recordedBy: session.user.name || session.user.email,
+            recordedBy: req.user?.name || req.user?.email || 'System',
             status: 'Normal'
           }],
           status: 'Operational',
@@ -109,3 +110,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 }
+
+// Use a more permissive permission for inventory management
+export default withAuth(handler, { requiredPermission: 'canViewInventory' });
