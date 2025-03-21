@@ -1,21 +1,16 @@
-import { connectToDatabase } from '../../../lib/mongodb';
+import dbConnect from '../../../lib/mongodb';
 import BloodUnit from '../../../models/BloodUnit';
 import Storage from '../../../models/Storage';
 import StorageLog from '../../../models/StorageLog';
-import { getSession } from 'next-auth/react';
+import withAuth from '../../../lib/middlewares/withAuth';
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
-    const session = await getSession({ req });
-    if (!session) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    await connectToDatabase();
+    await dbConnect();
 
     // Calculate current date and thresholds
     const currentDate = new Date();
@@ -43,6 +38,14 @@ export default async function handler(req, res) {
       byBloodType[item._id] = item.count;
     });
 
+    // Set default values for all blood types even if none exist
+    const allBloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+    allBloodTypes.forEach(type => {
+      if (!byBloodType[type]) {
+        byBloodType[type] = 0;
+      }
+    });
+
     // Get inventory by status
     const statusAggregate = await BloodUnit.aggregate([
       {
@@ -59,6 +62,14 @@ export default async function handler(req, res) {
     const byStatus = {};
     statusAggregate.forEach(item => {
       byStatus[item._id] = item.count;
+    });
+
+    // Set default values for all statuses even if none exist
+    const allStatuses = ['Available', 'Reserved', 'Quarantined', 'Discarded', 'Transfused', 'Expired'];
+    allStatuses.forEach(status => {
+      if (!byStatus[status]) {
+        byStatus[status] = 0;
+      }
     });
 
     // Get critical levels (less than 10 units per blood type)
@@ -144,3 +155,6 @@ export default async function handler(req, res) {
     res.status(500).json({ message: 'Failed to fetch inventory data', error: error.message });
   }
 }
+
+// Use a more permissive permission for viewing inventory
+export default withAuth(handler, { requiredPermission: 'canViewInventory' });
