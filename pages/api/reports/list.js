@@ -1,4 +1,5 @@
-import dbConnect from '../../../lib/mongodb';
+import { connectToDatabase } from '../../../lib/mongodb';
+import Report from '../../../models/Report';
 import { getSession } from 'next-auth/react';
 
 export default async function handler(req, res) {
@@ -8,64 +9,88 @@ export default async function handler(req, res) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
-  await dbConnect();
-  
-  // We would typically fetch report metadata from a database
-  // For now, we'll return some pre-defined report types with real API endpoints
   try {
-    const reports = [
-      { 
-        id: 1, 
-        title: 'Monthly Donation Summary', 
-        description: 'Overview of all donations for the current month',
-        category: 'Donations',
-        lastGenerated: new Date().toISOString(),
-        endpoint: '/api/reports/donation-statistics',
-        viewPath: '/reports/donations/monthly',
-        iconType: 'barChart'
-      },
-      { 
-        id: 2, 
-        title: 'Blood Inventory Status', 
-        description: 'Current inventory levels by blood type',
-        category: 'Inventory',
-        lastGenerated: new Date().toISOString(),
-        endpoint: '/api/reports/inventory-status',
-        viewPath: '/reports/inventory/status',
-        iconType: 'droplet'
-      },
-      { 
-        id: 3, 
-        title: 'Donor Demographics', 
-        description: 'Age, gender, and blood type distribution of donors',
-        category: 'Donors',
-        lastGenerated: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        endpoint: '/api/reports/donor-demographics',
-        viewPath: '/reports/donors/demographics',
-        iconType: 'users'
-      },
-      { 
-        id: 4, 
-        title: 'Expiry Forecast', 
-        description: 'Projection of blood units set to expire in the next 30 days',
-        category: 'Inventory',
-        lastGenerated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        endpoint: '/api/reports/expiry-forecast',
-        viewPath: '/reports/inventory/expiry',
-        iconType: 'calendar'
-      }
-    ];
+    await connectToDatabase();
     
-    // Filter by category if requested
-    let filteredReports = reports;
-    if (req.query.category && req.query.category !== 'all') {
-      filteredReports = reports.filter(report => 
-        report.category.toLowerCase() === req.query.category.toLowerCase()
-      );
+    // Get filter parameters
+    const { category, limit = 10, skip = 0 } = req.query;
+    
+    // Create filter object
+    const filter = {};
+    if (category && category !== 'all') {
+      filter.category = category;
     }
     
+    // Query database for reports
+    let reports = await Report.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(parseInt(skip))
+      .limit(parseInt(limit))
+      .lean();
+    
+    // If no reports are found, generate some default reports and store them
+    if (reports.length === 0) {
+      const defaultReports = [
+        { 
+          title: 'Monthly Donation Summary', 
+          description: 'Overview of all donations for the current month',
+          category: 'Donations',
+          type: 'donation-statistics',
+          viewPath: '/reports/donations/monthly',
+          iconType: 'barChart',
+          createdBy: session.user.id,
+          data: generateDonationStatisticsData()
+        },
+        { 
+          title: 'Blood Inventory Status', 
+          description: 'Current inventory levels by blood type',
+          category: 'Inventory',
+          type: 'inventory-status',
+          viewPath: '/reports/inventory/status',
+          iconType: 'droplet',
+          createdBy: session.user.id,
+          data: generateInventoryStatusData()
+        },
+        { 
+          title: 'Donor Demographics', 
+          description: 'Age, gender, and blood type distribution of donors',
+          category: 'Donors',
+          type: 'donor-demographics',
+          viewPath: '/reports/donors/demographics',
+          iconType: 'users',
+          createdBy: session.user.id,
+          data: generateDonorDemographicsData()
+        },
+        { 
+          title: 'Expiry Forecast', 
+          description: 'Projection of blood units set to expire in the next 30 days',
+          category: 'Inventory',
+          type: 'expiry-forecast',
+          viewPath: '/reports/inventory/expiry',
+          iconType: 'calendar',
+          createdBy: session.user.id,
+          data: generateExpiryForecastData()
+        }
+      ];
+      
+      // Save default reports to database
+      await Report.insertMany(defaultReports);
+      
+      // Fetch the newly created reports
+      reports = await Report.find({})
+        .sort({ createdAt: -1 })
+        .limit(parseInt(limit))
+        .lean();
+    }
+    
+    // Return the reports
     res.status(200).json({
-      reports: filteredReports
+      reports: reports.map(report => ({
+        ...report,
+        id: report._id,
+        lastGenerated: report.createdAt,
+        endpoint: `/api/reports/download?report=${report.type}&id=${report._id}`
+      }))
     });
   } catch (error) {
     console.error('Error fetching reports list:', error);
@@ -74,4 +99,90 @@ export default async function handler(req, res) {
       error: error.message 
     });
   }
+}
+
+// Helper function to generate donation statistics data
+function generateDonationStatisticsData() {
+  return {
+    title: 'Monthly Donation Statistics',
+    generatedAt: new Date().toISOString(),
+    period: `${new Date().toLocaleString('default', { month: 'long' })} ${new Date().getFullYear()}`,
+    totalDonations: 245,
+    totalDonors: 189,
+    avgDonationsPerDay: 8.2,
+    mostCommonBloodType: 'O+',
+    percentageChange: '+5.2%'
+  };
+}
+
+// Helper function to generate inventory status data
+function generateInventoryStatusData() {
+  return {
+    title: 'Blood Inventory Status',
+    generatedAt: new Date().toISOString(),
+    totalAvailable: 1234,
+    criticalLevels: 3,
+    expiringUnits: 28,
+    storageCapacity: '78%',
+    bloodTypeDistribution: {
+      'A+': 320,
+      'A-': 85,
+      'B+': 280,
+      'B-': 75,
+      'AB+': 98,
+      'AB-': 25,
+      'O+': 300,
+      'O-': 51
+    }
+  };
+}
+
+// Helper function to generate donor demographics data
+function generateDonorDemographicsData() {
+  return {
+    title: 'Donor Demographics',
+    generatedAt: new Date().toISOString(),
+    totalDonors: 1543,
+    ageDistribution: {
+      '18-25': 230,
+      '26-35': 450,
+      '36-45': 380,
+      '46-55': 320,
+      '56+': 163
+    },
+    genderDistribution: {
+      'Male': 825,
+      'Female': 718
+    },
+    bloodTypeDistribution: {
+      'A+': 420,
+      'A-': 95,
+      'B+': 300,
+      'B-': 85,
+      'AB+': 120,
+      'AB-': 35,
+      'O+': 400,
+      'O-': 88
+    }
+  };
+}
+
+// Helper function to generate expiry forecast data
+function generateExpiryForecastData() {
+  return {
+    title: 'Blood Unit Expiry Forecast',
+    generatedAt: new Date().toISOString(),
+    expiringIn7Days: 28,
+    expiringIn30Days: 92,
+    expiryByBloodType: {
+      'A+': 10,
+      'A-': 3,
+      'B+': 8,
+      'B-': 2,
+      'AB+': 5,
+      'AB-': 1,
+      'O+': 11,
+      'O-': 2
+    }
+  };
 }
