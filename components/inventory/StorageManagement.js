@@ -36,7 +36,8 @@ import {
   Divider,
   HStack,
   VStack,
-  Tooltip
+  Tooltip,
+  Icon
 } from '@chakra-ui/react';
 import { 
   FiSearch, 
@@ -140,7 +141,6 @@ const StorageManagement = () => {
 
   const handleAddStorageUnit = (newUnit) => {
     setStorageUnits(prevUnits => [...prevUnits, newUnit]);
-    onAddModalClose();
     
     toast({
       title: 'Success',
