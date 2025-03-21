@@ -37,7 +37,11 @@ import {
   HStack,
   VStack,
   Tooltip,
-  Icon
+  Icon,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription
 } from '@chakra-ui/react';
 import { 
   FiSearch, 
@@ -75,6 +79,7 @@ const StorageManagement = () => {
   const [storageUnits, setStorageUnits] = useState([]);
   const [filteredUnits, setFilteredUnits] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -89,14 +94,19 @@ const StorageManagement = () => {
   }, []);
 
   useEffect(() => {
+    if (!Array.isArray(storageUnits)) {
+      setFilteredUnits([]);
+      return;
+    }
+    
     let result = [...storageUnits];
     
     // Apply search filter
     if (searchTerm.trim() !== '') {
       result = result.filter(unit => 
-        unit.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        unit.facilityName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        unit.storageUnitId.toLowerCase().includes(searchTerm.toLowerCase())
+        (unit.name && unit.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (unit.facilityName && unit.facilityName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (unit.storageUnitId && unit.storageUnitId.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
     
@@ -116,31 +126,40 @@ const StorageManagement = () => {
   const fetchStorageUnits = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
       const response = await fetch('/api/inventory/storage');
       
       if (!response.ok) {
-        throw new Error('Failed to fetch storage units');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch storage units');
       }
       
       const data = await response.json();
-      setStorageUnits(data);
-      setFilteredUnits(data);
+      
+      if (!Array.isArray(data)) {
+        console.warn('Unexpected data format:', data);
+        setStorageUnits([]);
+        setFilteredUnits([]);
+      } else {
+        setStorageUnits(data);
+        setFilteredUnits(data);
+      }
     } catch (error) {
       console.error('Error fetching storage units:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load storage units. Please try again.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+      setError(error.message || 'Failed to load storage units. Please try again.');
+      setStorageUnits([]);
+      setFilteredUnits([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleAddStorageUnit = (newUnit) => {
-    setStorageUnits(prevUnits => [...prevUnits, newUnit]);
+    setStorageUnits(prevUnits => {
+      const units = Array.isArray(prevUnits) ? prevUnits : [];
+      return [...units, newUnit];
+    });
     
     toast({
       title: 'Success',
@@ -281,6 +300,17 @@ const StorageManagement = () => {
         </CardBody>
       </Card>
 
+      {error && (
+        <Alert status="error" mb={4} borderRadius="md">
+          <AlertIcon />
+          <AlertTitle>Error!</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+          <Button onClick={fetchStorageUnits} ml="auto" size="sm" colorScheme="red">
+            Try Again
+          </Button>
+        </Alert>
+      )}
+
       {loading ? (
         <Flex justify="center" align="center" h="300px">
           <Spinner size="xl" color="blue.500" />
@@ -342,14 +372,14 @@ const StorageManagement = () => {
                             <Flex justify="space-between" mb={1}>
                               <Text fontSize="sm">Capacity Usage</Text>
                               <Text fontSize="sm" fontWeight="medium">
-                                {unit.capacity.used} of {unit.capacity.total} {unit.capacity.units}
+                                {unit.capacity?.used || 0} of {unit.capacity?.total || 0} {unit.capacity?.units || 'Units'}
                               </Text>
                             </Flex>
                             <Progress 
-                              value={unit.capacity.availablePercentage} 
+                              value={unit.capacity?.availablePercentage || 100} 
                               colorScheme={
-                                unit.capacity.availablePercentage > 70 ? "green" : 
-                                unit.capacity.availablePercentage > 30 ? "yellow" : 
+                                (unit.capacity?.availablePercentage || 100) > 70 ? "green" : 
+                                (unit.capacity?.availablePercentage || 100) > 30 ? "yellow" : 
                                 "red"
                               }
                               size="sm"
@@ -363,7 +393,7 @@ const StorageManagement = () => {
                                 getTemperatureStatusColor(unit.currentTemperature.status)
                               } />
                               <Text>
-                                Current: {unit.currentTemperature.value}°{unit.temperature.units === 'Celsius' ? 'C' : 'F'}
+                                Current: {unit.currentTemperature.value}°{unit.temperature?.units === 'Celsius' ? 'C' : 'F'}
                               </Text>
                               {unit.currentTemperature.status !== 'Normal' && (
                                 <Badge colorScheme={getTemperatureStatusColor(unit.currentTemperature.status)}>
@@ -376,7 +406,7 @@ const StorageManagement = () => {
                           <Box>
                             <Text fontSize="sm" mb={1}>Temperature Range:</Text>
                             <Text fontSize="sm" fontWeight="medium">
-                              {unit.temperature.min}° to {unit.temperature.max}° {unit.temperature.units === 'Celsius' ? 'C' : 'F'}
+                              {unit.temperature?.min || 0}° to {unit.temperature?.max || 0}° {unit.temperature?.units === 'Celsius' ? 'C' : 'F'}
                             </Text>
                           </Box>
                         </VStack>
@@ -483,7 +513,7 @@ const StorageManagement = () => {
                           <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} mt={6}>
                             <Stat>
                               <StatLabel>Current Temperature</StatLabel>
-                              <StatNumber>{selectedStorage.currentTemperature?.value || '—'}°{selectedStorage.temperature.units === 'Celsius' ? 'C' : 'F'}</StatNumber>
+                              <StatNumber>{selectedStorage.currentTemperature?.value || '—'}°{selectedStorage.temperature?.units === 'Celsius' ? 'C' : 'F'}</StatNumber>
                               <StatHelpText>
                                 <Badge colorScheme={getTemperatureStatusColor(selectedStorage.currentTemperature?.status)}>
                                   {selectedStorage.currentTemperature?.status || 'Unknown'}
@@ -493,9 +523,9 @@ const StorageManagement = () => {
                             
                             <Stat>
                               <StatLabel>Target Temperature</StatLabel>
-                              <StatNumber>{selectedStorage.temperature.target}°{selectedStorage.temperature.units === 'Celsius' ? 'C' : 'F'}</StatNumber>
+                              <StatNumber>{selectedStorage.temperature?.target || '—'}°{selectedStorage.temperature?.units === 'Celsius' ? 'C' : 'F'}</StatNumber>
                               <StatHelpText>
-                                Range: {selectedStorage.temperature.min}° to {selectedStorage.temperature.max}°
+                                Range: {selectedStorage.temperature?.min || '—'}° to {selectedStorage.temperature?.max || '—'}°
                               </StatHelpText>
                             </Stat>
                             
