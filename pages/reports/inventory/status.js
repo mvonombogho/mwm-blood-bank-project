@@ -24,22 +24,37 @@ import {
   AlertIcon,
   Progress,
   HStack,
-  useColorModeValue
+  useColorModeValue,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  useToast
 } from '@chakra-ui/react';
 import { 
   FiDownload, 
   FiArrowLeft, 
   FiDroplet,
   FiAlertTriangle,
-  FiCheck
+  FiCheck,
+  FiChevronDown
 } from 'react-icons/fi';
 import { useRouter } from 'next/router';
 import NextLink from 'next/link';
+import { 
+  generateCSV, 
+  generatePDF,
+  generateExcel,
+  downloadFile,
+  prepareInventoryReport 
+} from '../../../lib/reportUtils';
 
 const InventoryStatusReport = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
   const router = useRouter();
+  const toast = useToast();
   const bgColor = useColorModeValue('white', 'gray.800');
   
   // Mock data for inventory status
@@ -162,6 +177,80 @@ const InventoryStatusReport = () => {
     
     if (totalCapacity === 0) return 0;
     return Math.round((totalUnits / totalCapacity) * 100);
+  };
+  
+  // Handle exporting in different formats
+  const handleExport = async (format) => {
+    try {
+      setIsExporting(true);
+      
+      // Prepare the report data
+      const reportData = prepareInventoryReport(inventoryData);
+      const currentDate = new Date().toISOString().split('T')[0];
+      let fileData;
+      let filename;
+      let mimeType;
+      
+      // Generate the appropriate format
+      switch (format) {
+        case 'csv':
+          fileData = generateCSV(reportData.data);
+          filename = `inventory-report-${currentDate}.csv`;
+          mimeType = 'text/csv';
+          break;
+          
+        case 'excel':
+          // In a real app, this would use a library like SheetJS
+          // For now, we use a simple mock
+          fileData = generateExcel({
+            title: reportData.title,
+            sheets: {
+              'Inventory Summary': reportData.summary,
+              'Inventory Details': reportData.data
+            }
+          });
+          filename = `inventory-report-${currentDate}.xlsx`;
+          mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          break;
+          
+        case 'pdf':
+          // In a real app, this would use a PDF generation library
+          fileData = generatePDF(reportData);
+          filename = `inventory-report-${currentDate}.pdf`;
+          mimeType = 'application/pdf';
+          break;
+          
+        default:
+          throw new Error(`Unsupported format: ${format}`);
+      }
+      
+      // Download the file
+      downloadFile(fileData, filename, mimeType);
+      
+      toast({
+        title: 'Export successful',
+        description: `Report exported as ${format.toUpperCase()}`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true
+      });
+    } catch (err) {
+      console.error('Export error:', err);
+      toast({
+        title: 'Export failed',
+        description: err.message || 'Failed to export report',
+        status: 'error',
+        duration: 5000,
+        isClosable: true
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  
+  // Handle printing the report
+  const handlePrint = () => {
+    window.print();
   };
   
   return (
@@ -310,12 +399,34 @@ const InventoryStatusReport = () => {
             <Text fontSize="sm" color="gray.500">
               Last updated: {Array.isArray(inventoryData) && inventoryData.length > 0 && inventoryData[0]?.lastUpdated ? inventoryData[0].lastUpdated : 'N/A'}
             </Text>
-            <Button
-              colorScheme="blue"
-              leftIcon={<FiDownload />}
-            >
-              Download Report
-            </Button>
+            <HStack spacing={3}>
+              <Button
+                onClick={handlePrint}
+                variant="outline"
+              >
+                Print Report
+              </Button>
+              
+              <Menu>
+                <MenuButton 
+                  as={Button} 
+                  rightIcon={<FiChevronDown />} 
+                  colorScheme="blue"
+                  isLoading={isExporting}
+                  loadingText="Exporting"
+                >
+                  <Flex align="center">
+                    <Icon as={FiDownload} mr={2} />
+                    Export
+                  </Flex>
+                </MenuButton>
+                <MenuList>
+                  <MenuItem onClick={() => handleExport('csv')}>Export as CSV</MenuItem>
+                  <MenuItem onClick={() => handleExport('excel')}>Export as Excel</MenuItem>
+                  <MenuItem onClick={() => handleExport('pdf')}>Export as PDF</MenuItem>
+                </MenuList>
+              </Menu>
+            </HStack>
           </Flex>
         </>
       )}
