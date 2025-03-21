@@ -28,11 +28,30 @@ import {
   useColorModeValue,
   Spinner,
   Alert,
-  AlertIcon
+  AlertIcon,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  useToast
 } from '@chakra-ui/react';
-import { FiDownload, FiBarChart2, FiCalendar, FiPrinter, FiArrowLeft } from 'react-icons/fi';
+import { 
+  FiDownload, 
+  FiBarChart2, 
+  FiCalendar, 
+  FiPrinter, 
+  FiArrowLeft,
+  FiChevronDown 
+} from 'react-icons/fi';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { 
+  generateCSV, 
+  generatePDF, 
+  generateExcel, 
+  downloadFile,
+  prepareDonationReport 
+} from '../../../lib/reportUtils';
 
 const MonthlyDonationReport = () => {
   const [data, setData] = useState(null);
@@ -40,8 +59,10 @@ const MonthlyDonationReport = () => {
   const [error, setError] = useState(null);
   const [month, setMonth] = useState(new Date().getMonth());
   const [year, setYear] = useState(new Date().getFullYear());
+  const [isExporting, setIsExporting] = useState(false);
   
   const router = useRouter();
+  const toast = useToast();
   const bgColor = useColorModeValue('white', 'gray.800');
   
   // Mock data for donation report
@@ -116,11 +137,128 @@ const MonthlyDonationReport = () => {
     ));
   };
   
-  const handleExport = (format) => {
-    // In a real app, this would trigger a download
-    alert(`Exporting report as ${format}...`);
+  // Prepare the report data for export
+  const prepareReportData = () => {
+    if (!data) return null;
+    
+    // Convert blood type data to array format for CSV/Excel export
+    const bloodTypeData = Object.entries(data.byBloodType).map(([type, count]) => ({
+      bloodType: type,
+      count,
+      percentage: ((count / data.totalDonations) * 100).toFixed(1) + '%'
+    }));
+    
+    // Convert recent donations for export
+    const donationsForExport = data.recentDonations.map(d => ({
+      id: d.id,
+      donor: d.donor,
+      bloodType: d.bloodType,
+      date: new Date(d.date).toLocaleDateString(),
+      location: d.location
+    }));
+    
+    return {
+      title: `Monthly Donation Report - ${getMonthName(month)} ${year}`,
+      date: new Date().toISOString(),
+      summary: {
+        month: getMonthName(month),
+        year,
+        totalDonations: data.totalDonations,
+        totalDonors: data.totalDonors,
+        newDonors: data.newDonors,
+        returnDonors: data.returnDonors,
+        averagePerDay: data.averagePerDay,
+        percentChange: data.percentChange + '%'
+      },
+      sheets: {
+        'Summary': {
+          totalDonations: data.totalDonations,
+          totalDonors: data.totalDonors,
+          newDonors: data.newDonors,
+          returnDonors: data.returnDonors,
+          averagePerDay: data.averagePerDay,
+          percentChange: data.percentChange + '%'
+        },
+        'By Blood Type': bloodTypeData,
+        'By Week': data.byWeek,
+        'By Location': data.byLocation,
+        'Recent Donations': donationsForExport
+      },
+      data: donationsForExport,
+      period: `${getMonthName(month)} ${year}`
+    };
   };
   
+  // Handle exporting in different formats
+  const handleExport = async (format) => {
+    try {
+      setIsExporting(true);
+      
+      // Prepare the report data
+      const reportData = prepareReportData();
+      if (!reportData) throw new Error('No data available for export');
+      
+      const currentDate = new Date().toISOString().split('T')[0];
+      let fileData;
+      let filename;
+      let mimeType;
+      
+      // Generate the appropriate format
+      switch (format) {
+        case 'csv':
+          // Export recent donations as CSV
+          fileData = generateCSV(reportData.data);
+          filename = `donations-${getMonthName(month).toLowerCase()}-${year}-${currentDate}.csv`;
+          mimeType = 'text/csv';
+          break;
+          
+        case 'excel':
+          // In a real app, this would use a library like SheetJS
+          fileData = generateExcel(reportData);
+          filename = `donations-${getMonthName(month).toLowerCase()}-${year}-${currentDate}.xlsx`;
+          mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          break;
+          
+        case 'pdf':
+          // In a real app, this would use a PDF generation library
+          fileData = generatePDF(reportData);
+          filename = `donations-${getMonthName(month).toLowerCase()}-${year}-${currentDate}.pdf`;
+          mimeType = 'application/pdf';
+          break;
+          
+        default:
+          throw new Error(`Unsupported format: ${format}`);
+      }
+      
+      // Download the file
+      downloadFile(fileData, filename, mimeType);
+      
+      toast({
+        title: 'Export successful',
+        description: `Report exported as ${format.toUpperCase()}`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true
+      });
+    } catch (err) {
+      console.error('Export error:', err);
+      toast({
+        title: 'Export failed',
+        description: err.message || 'Failed to export report',
+        status: 'error',
+        duration: 5000,
+        isClosable: true
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  
+  // Handle printing the report
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <Box p={5}>
       <Flex align="center" mb={4}>
@@ -159,17 +297,30 @@ const MonthlyDonationReport = () => {
             leftIcon={<FiPrinter />}
             colorScheme="blue"
             variant="outline"
+            onClick={handlePrint}
           >
             Print
           </Button>
           
-          <Button
-            leftIcon={<FiDownload />}
-            colorScheme="green"
-            onClick={() => handleExport('PDF')}
-          >
-            Export
-          </Button>
+          <Menu>
+            <MenuButton 
+              as={Button} 
+              rightIcon={<FiChevronDown />} 
+              colorScheme="green"
+              isLoading={isExporting}
+              loadingText="Exporting"
+            >
+              <Flex align="center">
+                <Icon as={FiDownload} mr={2} />
+                Export
+              </Flex>
+            </MenuButton>
+            <MenuList>
+              <MenuItem onClick={() => handleExport('csv')}>Export as CSV</MenuItem>
+              <MenuItem onClick={() => handleExport('excel')}>Export as Excel</MenuItem>
+              <MenuItem onClick={() => handleExport('pdf')}>Export as PDF</MenuItem>
+            </MenuList>
+          </Menu>
         </HStack>
       </Flex>
       
@@ -375,8 +526,9 @@ const MonthlyDonationReport = () => {
                 variant="outline" 
                 size="sm"
                 rightIcon={<FiBarChart2 />}
+                onClick={() => handleExport('csv')}
               >
-                View Full Report
+                Export Full Data
               </Button>
             </CardBody>
           </Card>
