@@ -39,7 +39,9 @@ import {
   PopoverBody,
   PopoverArrow,
   PopoverCloseButton,
-  SimpleGrid
+  SimpleGrid,
+  Alert,
+  AlertIcon
 } from '@chakra-ui/react';
 import { FiCalendar, FiChevronLeft, FiChevronRight, FiFilter, FiAlertCircle, FiAlertTriangle, FiCheckCircle } from 'react-icons/fi';
 
@@ -76,6 +78,7 @@ const ExpiryCalendar = () => {
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedDayUnits, setSelectedDayUnits] = useState([]);
   const [bloodTypeFilter, setBloodTypeFilter] = useState('');
+  const [error, setError] = useState(null);
   
   const bgColor = useColorModeValue('white', 'gray.800');
   const calendarBgColor = useColorModeValue('gray.50', 'gray.700');
@@ -88,41 +91,82 @@ const ExpiryCalendar = () => {
 
   useEffect(() => {
     fetchExpiryData();
-  }, [year, month]);
+  }, [year, month, bloodTypeFilter]);
 
   const fetchExpiryData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      // Calculate first and last day of the month
       const firstDay = new Date(year, month, 1);
       const lastDay = new Date(year, month + 1, 0);
       
+      // Format dates for API call
       const startDate = firstDay.toISOString().split('T')[0];
       const endDate = lastDay.toISOString().split('T')[0];
       
-      const response = await fetch(`/api/inventory/expiry-tracking?startDate=${startDate}&endDate=${endDate}`);
+      // Build API URL with query parameters
+      let url = `/api/inventory/expiry-tracking?startDate=${startDate}&endDate=${endDate}`;
+      
+      if (bloodTypeFilter) {
+        url += `&bloodType=${bloodTypeFilter}`;
+      }
+      
+      // Make API request
+      const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch expiry data');
+        throw new Error(`API request failed with status ${response.status}`);
       }
       
       const data = await response.json();
       
       // Organize data by day
-      const organizedData = {};
-      data.forEach(unit => {
-        const expiryDate = new Date(unit.expirationDate);
-        const dayKey = expiryDate.getDate();
+      if (data.expiringUnits && Array.isArray(data.expiringUnits)) {
+        const organizedData = {};
         
-        if (!organizedData[dayKey]) {
-          organizedData[dayKey] = [];
-        }
+        data.expiringUnits.forEach(unit => {
+          if (unit.expirationDate) {
+            const expiryDate = new Date(unit.expirationDate);
+            
+            // Check if expiry date is in the current month/year
+            if (expiryDate.getMonth() === month && expiryDate.getFullYear() === year) {
+              const day = expiryDate.getDate();
+              
+              if (!organizedData[day]) {
+                organizedData[day] = [];
+              }
+              
+              organizedData[day].push(unit);
+            }
+          }
+        });
         
-        organizedData[dayKey].push(unit);
-      });
-      
-      setExpiryData(organizedData);
+        setExpiryData(organizedData);
+      } else if (data.calendarData && Array.isArray(data.calendarData)) {
+        // Alternative data format - calendar data might just have counts
+        const organizedData = {};
+        
+        data.calendarData.forEach(item => {
+          if (item.date) {
+            const date = new Date(item.date);
+            if (date.getMonth() === month && date.getFullYear() === year) {
+              const day = date.getDate();
+              // Store count instead of array of units
+              organizedData[day] = item.count || 0;
+            }
+          }
+        });
+        
+        setExpiryData(organizedData);
+      } else {
+        // No valid data format found
+        setExpiryData({});
+      }
     } catch (error) {
       console.error('Error fetching expiry data:', error);
+      setError(error.message || 'Failed to load expiry data');
       toast({
         title: 'Error',
         description: 'Failed to load expiry data. Please try again.',
@@ -153,266 +197,53 @@ const ExpiryCalendar = () => {
     }
   };
 
-  const handleDayClick = (day) => {
-    if (!day || !expiryData[day]) return;
+  const handleDayClick = async (day) => {
+    if (!day || !(expiryData[day] && (expiryData[day].length > 0 || (typeof expiryData[day] === 'number' && expiryData[day] > 0)))) {
+      return;
+    }
     
     setSelectedDay(day);
+    setLoading(true);
+    setSelectedDayUnits([]);
     
-    let units = [...expiryData[day]];
-    
-    // Apply blood type filter if set
-    if (bloodTypeFilter) {
-      units = units.filter(unit => unit.bloodType === bloodTypeFilter);
-    }
-    
-    setSelectedDayUnits(units);
-    onOpen();
-  };
-
-  const renderCalendar = () => {
-    const daysInMonth = getDaysInMonth(year, month);
-    const firstDay = getFirstDayOfMonth(year, month);
-    
-    const days = [];
-    
-    // Empty cells for days before the first day of the month
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<GridItem key={`empty-${i}`} />);
-    }
-    
-    // Cells for each day in the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
-      const hasExpiry = expiryData[day] && expiryData[day].length > 0;
+    try {
+      // Format the specific date for the API request
+      const selectedDate = new Date(year, month, day);
+      const formattedDate = selectedDate.toISOString().split('T')[0];
       
-      // Count units by critical urgency
-      let criticalCount = 0;
-      let warningCount = 0;
-      let normalCount = 0;
+      // Build API URL for this specific day
+      let url = `/api/inventory/expiry-tracking?date=${formattedDate}`;
       
-      if (hasExpiry) {
-        expiryData[day].forEach(unit => {
-          const expiryDate = new Date(unit.expirationDate);
-          const todayDate = new Date();
-          const diffTime = expiryDate - todayDate;
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          
-          if (diffDays <= 2) {
-            criticalCount++;
-          } else if (diffDays <= 7) {
-            warningCount++;
-          } else {
-            normalCount++;
-          }
-        });
+      if (bloodTypeFilter) {
+        url += `&bloodType=${bloodTypeFilter}`;
       }
       
-      days.push(
-        <GridItem 
-          key={day}
-          p={2}
-          bg={isToday ? todayBgColor : calendarBgColor}
-          border="1px solid"
-          borderColor={isToday ? todayBorderColor : borderColor}
-          borderRadius="md"
-          cursor={hasExpiry ? 'pointer' : 'default'}
-          _hover={hasExpiry ? { boxShadow: 'md', bg: isToday ? todayBgColor : 'gray.100' } : {}}
-          transition="all 0.2s"
-          onClick={() => hasExpiry && handleDayClick(day)}
-        >
-          <Flex direction="column" h="100%">
-            <Text fontWeight={isToday ? 'bold' : 'normal'}>
-              {day}
-            </Text>
-            {hasExpiry && (
-              <VStack mt="auto" spacing={1} align="stretch">
-                {criticalCount > 0 && (
-                  <Flex align="center" bg={expiryCriticalColor} p={1} borderRadius="sm">
-                    <Icon as={FiAlertCircle} color="red.500" mr={1} />
-                    <Text fontSize="xs">{criticalCount} critical</Text>
-                  </Flex>
-                )}
-                {warningCount > 0 && (
-                  <Flex align="center" bg={expiryWarningColor} p={1} borderRadius="sm">
-                    <Icon as={FiAlertTriangle} color="orange.500" mr={1} />
-                    <Text fontSize="xs">{warningCount} soon</Text>
-                  </Flex>
-                )}
-                {normalCount > 0 && (
-                  <Flex align="center" bg={expiryGoodColor} p={1} borderRadius="sm">
-                    <Icon as={FiCheckCircle} color="green.500" mr={1} />
-                    <Text fontSize="xs">{normalCount} good</Text>
-                  </Flex>
-                )}
-              </VStack>
-            )}
-          </Flex>
-        </GridItem>
-      );
-    }
-    
-    return days;
-  };
-
-  return (
-    <Box>
-      <Card bg={bgColor} boxShadow="md" borderRadius="lg" mb={6}>
-        <CardHeader pb={0}>
-          <Flex justify="space-between" align="center">
-            <Heading size="md">Expiration Calendar</Heading>
-            
-            <Select 
-              placeholder="Filter by blood type" 
-              value={bloodTypeFilter}
-              onChange={(e) => setBloodTypeFilter(e.target.value)}
-              maxW="200px"
-            >
-              <option value="A+">A+</option>
-              <option value="A-">A-</option>
-              <option value="B+">B+</option>
-              <option value="B-">B-</option>
-              <option value="AB+">AB+</option>
-              <option value="AB-">AB-</option>
-              <option value="O+">O+</option>
-              <option value="O-">O-</option>
-            </Select>
-          </Flex>
-        </CardHeader>
-        <CardBody>
-          <HStack justify="space-between" mb={4}>
-            <Button leftIcon={<FiChevronLeft />} onClick={handlePreviousMonth} size="sm">
-              Previous
-            </Button>
-            <Heading size="md">
-              {months[month]} {year}
-            </Heading>
-            <Button rightIcon={<FiChevronRight />} onClick={handleNextMonth} size="sm">
-              Next
-            </Button>
-          </HStack>
-          
-          {loading ? (
-            <Flex justify="center" align="center" h="300px">
-              <Spinner size="xl" color="blue.500" />
-            </Flex>
-          ) : (
-            <Box>
-              <Grid 
-                templateColumns="repeat(7, 1fr)" 
-                gap={2}
-                mb={2}
-              >
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <GridItem key={day} textAlign="center" fontWeight="bold">
-                    <Text>{day}</Text>
-                  </GridItem>
-                ))}
-              </Grid>
-              
-              <Grid 
-                templateColumns="repeat(7, 1fr)" 
-                gap={2}
-                templateRows={`repeat(${Math.ceil((getDaysInMonth(year, month) + getFirstDayOfMonth(year, month)) / 7)}, 100px)`}
-              >
-                {renderCalendar()}
-              </Grid>
-            </Box>
-          )}
-          
-          <Box mt={6}>
-            <Heading size="sm" mb={3}>Expiry Legend</Heading>
-            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
-              <Flex align="center" bg={expiryCriticalColor} p={2} borderRadius="md">
-                <Icon as={FiAlertCircle} color="red.500" mr={2} />
-                <Text fontSize="sm">Critical: Expires within 2 days</Text>
-              </Flex>
-              <Flex align="center" bg={expiryWarningColor} p={2} borderRadius="md">
-                <Icon as={FiAlertTriangle} color="orange.500" mr={2} />
-                <Text fontSize="sm">Warning: Expires within 7 days</Text>
-              </Flex>
-              <Flex align="center" bg={expiryGoodColor} p={2} borderRadius="md">
-                <Icon as={FiCheckCircle} color="green.500" mr={2} />
-                <Text fontSize="sm">Good: Expires after 7 days</Text>
-              </Flex>
-            </SimpleGrid>
-          </Box>
-        </CardBody>
-      </Card>
+      // Make API request for specific day data
+      const response = await fetch(url);
       
-      {/* Day Detail Modal */}
-      <Modal isOpen={isOpen} onClose={onClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            Expiring Units on {months[month]} {selectedDay}, {year}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            {selectedDayUnits.length === 0 ? (
-              <Text>No units found matching your criteria.</Text>
-            ) : (
-              <Table variant="simple" size="sm">
-                <Thead>
-                  <Tr>
-                    <Th>Unit ID</Th>
-                    <Th>Blood Type</Th>
-                    <Th>Collection Date</Th>
-                    <Th>Expiry Date</Th>
-                    <Th>Status</Th>
-                    <Th>Days Left</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {selectedDayUnits.map((unit) => {
-                    const expiryDate = new Date(unit.expirationDate);
-                    const todayDate = new Date();
-                    const diffTime = expiryDate - todayDate;
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    
-                    let badgeColor = 'green';
-                    if (diffDays <= 2) badgeColor = 'red';
-                    else if (diffDays <= 7) badgeColor = 'orange';
-                    
-                    return (
-                      <Tr key={unit._id}>
-                        <Td>{unit.unitId}</Td>
-                        <Td>
-                          <Badge>{unit.bloodType}</Badge>
-                        </Td>
-                        <Td>{formatDate(new Date(unit.collectionDate))}</Td>
-                        <Td>{formatDate(expiryDate)}</Td>
-                        <Td>
-                          <Badge colorScheme={
-                            unit.status === 'Available' ? 'green' :
-                            unit.status === 'Reserved' ? 'blue' :
-                            unit.status === 'Quarantined' ? 'yellow' :
-                            unit.status === 'Discarded' ? 'red' :
-                            unit.status === 'Transfused' ? 'purple' : 'gray'
-                          }>
-                            {unit.status}
-                          </Badge>
-                        </Td>
-                        <Td>
-                          <Badge colorScheme={badgeColor}>
-                            {diffDays} day{diffDays !== 1 ? 's' : ''}
-                          </Badge>
-                        </Td>
-                      </Tr>
-                    );
-                  })}
-                </Tbody>
-              </Table>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button colorScheme="blue" mr={3} onClick={onClose}>
-              Close
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </Box>
-  );
-};
-
-export default ExpiryCalendar;
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Set the day's units
+      if (data.expiringUnits && Array.isArray(data.expiringUnits)) {
+        setSelectedDayUnits(data.expiringUnits);
+      } else {
+        setSelectedDayUnits([]);
+      }
+    } catch (error) {
+      console.error('Error fetching day details:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load details for this day.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+      onOpen(); // Open the modal with day details
+    }
+  };
