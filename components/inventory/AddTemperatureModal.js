@@ -50,36 +50,32 @@ const AddTemperatureModal = ({ isOpen, onClose, onTemperatureAdded, storageUnit 
         throw new Error('Please enter a valid temperature value');
       }
       
-      // In a real application, this would be an API call
-      // const response = await fetch(`/api/inventory/storage/${storageUnit.id}/temperature`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({
-      //     ...temperatureData,
-      //     temperature: parseFloat(temperatureData.temperature),
-      //     storageUnitId: storageUnit.id
-      //   }),
-      // });
-      // 
-      // if (!response.ok) {
-      //   throw new Error('Failed to add temperature reading');
-      // }
-      // 
-      // const data = await response.json();
-      
-      // Mock response for testing
-      const data = {
-        id: Date.now().toString(),
-        storageUnitId: storageUnit?.id || 'storage-1',
+      // Create request body
+      const requestData = {
         temperature: parseFloat(temperatureData.temperature),
         timestamp: temperatureData.timestamp,
         recordedBy: temperatureData.recordedBy || 'System',
         notes: temperatureData.notes,
-        createdAt: new Date().toISOString()
+        storageUnitId: storageUnit.storageUnitId
       };
       
+      // Make the actual API call
+      const response = await fetch(`/api/inventory/storage/temperature`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add temperature reading');
+      }
+      
+      const data = await response.json();
+      
+      // Call the onTemperatureAdded callback with the response data
       onTemperatureAdded(data);
       
       // Reset form
@@ -139,9 +135,11 @@ const AddTemperatureModal = ({ isOpen, onClose, onTemperatureAdded, storageUnit 
                     step="0.1"
                     placeholder="e.g., 4.2"
                   />
-                  <FormHelperText>
-                    Standard range: 2°C to 6°C
-                  </FormHelperText>
+                  {storageUnit && storageUnit.temperature && (
+                    <FormHelperText>
+                      Acceptable range: {storageUnit.temperature.min}°C to {storageUnit.temperature.max}°C
+                    </FormHelperText>
+                  )}
                 </FormControl>
               </GridItem>
               
