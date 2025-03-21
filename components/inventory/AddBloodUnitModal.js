@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Modal,
   ModalOverlay,
@@ -66,37 +66,23 @@ const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
     setLoading(true);
     
     try {
-      // In a real application, you would make an API call here
-      // const response = await fetch('/api/inventory/blood-units', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify(bloodUnit),
-      // });
+      // Make the actual API call to add a blood unit
+      const response = await fetch('/api/inventory/blood-units', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bloodUnit),
+      });
       
-      // if (!response.ok) {
-      //   throw new Error('Failed to add blood unit');
-      // }
+      if (!response.ok) {
+        throw new Error('Failed to add blood unit');
+      }
       
-      // const data = await response.json();
-      
-      // For now we'll simulate a successful API response
-      const mockResponse = {
-        ...bloodUnit,
-        _id: Date.now().toString(),
-        statusHistory: [
-          {
-            status: 'Quarantined',
-            date: new Date(),
-            updatedBy: 'System',
-            notes: 'Initial status after collection'
-          }
-        ]
-      };
+      const data = await response.json();
       
       // Call the parent callback with the new blood unit
-      onBloodUnitAdded(mockResponse);
+      onBloodUnitAdded(data);
       
       // Reset form
       setBloodUnit({
