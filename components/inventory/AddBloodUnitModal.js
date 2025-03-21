@@ -17,17 +17,20 @@ import {
   GridItem,
   Divider,
   Text,
-  useToast
+  useToast,
+  Box
 } from '@chakra-ui/react';
 
 const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   
   // Form state
   const [bloodUnit, setBloodUnit] = useState({
     unitId: `BU-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
     bloodType: '',
+    donorId: '65fcf46ee47753bdcd13ac1d', // Adding default donor ID - replace with a real one from your DB
     quantity: 450,
     collectionDate: new Date().toISOString().split('T')[0],
     expirationDate: new Date(Date.now() + 42 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -64,6 +67,7 @@ const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     
     try {
       // Make the actual API call to add a blood unit
@@ -75,11 +79,13 @@ const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
         body: JSON.stringify(bloodUnit),
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to add blood unit');
-      }
-      
+      // Get the response data
       const data = await response.json();
+      
+      if (!response.ok) {
+        // If the server responded with an error, throw it with the error message
+        throw new Error(data.message || 'Failed to add blood unit');
+      }
       
       // Call the parent callback with the new blood unit
       onBloodUnitAdded(data);
@@ -88,6 +94,7 @@ const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
       setBloodUnit({
         unitId: `BU-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
         bloodType: '',
+        donorId: '65fcf46ee47753bdcd13ac1d', // Keep the donor ID for next submission
         quantity: 450,
         collectionDate: new Date().toISOString().split('T')[0],
         expirationDate: new Date(Date.now() + 42 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -103,9 +110,10 @@ const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
       
     } catch (error) {
       console.error('Error adding blood unit:', error);
+      setError(error.message);
       toast({
         title: 'Error',
-        description: 'Failed to add blood unit. Please try again.',
+        description: error.message || 'Failed to add blood unit. Please try again.',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -123,6 +131,12 @@ const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
         <ModalCloseButton />
         <form onSubmit={handleSubmit}>
           <ModalBody>
+            {error && (
+              <Box bg="red.50" p={3} color="red.600" mb={4} borderRadius="md">
+                {error}
+              </Box>
+            )}
+            
             <Grid templateColumns="repeat(2, 1fr)" gap={4}>
               <GridItem colSpan={1}>
                 <FormControl isRequired>
