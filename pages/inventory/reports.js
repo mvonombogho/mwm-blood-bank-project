@@ -1,13 +1,38 @@
 import { useState } from 'react';
-import { Box, Heading, Tabs, TabList, TabPanels, Tab, TabPanel, Text } from '@chakra-ui/react';
+import { Box, Heading, Tabs, TabList, TabPanels, Tab, TabPanel, Text, Container, Spinner } from '@chakra-ui/react';
 import Layout from '../../components/Layout';
 import InventoryReportGenerator from '../../components/inventory/InventoryReportGenerator';
 import BloodSupplyTrends from '../../components/inventory/BloodSupplyTrends';
 import ExpiryReport from '../../components/inventory/ExpiryReport';
 import StorageConditionsReport from '../../components/inventory/StorageConditionsReport';
+import { useSession } from 'next-auth/react';
 
 export default function ReportsPage() {
   const [tabIndex, setTabIndex] = useState(0);
+  const { data: session, status } = useSession();
+
+  if (status === 'loading') {
+    return (
+      <Layout>
+        <Container maxW="container.xl" py={6}>
+          <Spinner />
+        </Container>
+      </Layout>
+    );
+  }
+
+  if (!session) {
+    return (
+      <Layout>
+        <Container maxW="container.xl" py={6}>
+          <Heading as="h1" size="xl" mb={6}>
+            Inventory Reports & Analytics
+          </Heading>
+          <Text>Please sign in to access this page.</Text>
+        </Container>
+      </Layout>
+    );
+  }
 
   return (
     <Layout title="Inventory Reports">
