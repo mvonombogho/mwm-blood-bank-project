@@ -131,94 +131,24 @@ const EnhancedBloodUnitManagement = () => {
     try {
       setLoading(true);
       
-      // Mock data for units
-      const mockData = [
-        {
-          _id: "1",
-          unitId: "BU-A-1001",
-          bloodType: "A+",
-          status: "Available",
-          collectionDate: "2023-05-30",
-          expirationDate: "2023-07-11",
-          quantity: 450,
-          location: {
-            facility: "Main Blood Bank",
-            storageUnit: "Refrigerator 1",
-            shelf: "A",
-            position: "3"
-          },
-          statusHistory: [
-            {
-              status: "Quarantined",
-              date: "2023-05-30",
-              updatedBy: "System",
-              notes: "Initial status after collection"
-            },
-            {
-              status: "Available",
-              date: "2023-06-01",
-              updatedBy: "TECH-104",
-              notes: "All tests passed, cleared for use"
-            }
-          ]
-        },
-        {
-          _id: "2",
-          unitId: "BU-O-2045",
-          bloodType: "O+",
-          status: "Reserved",
-          collectionDate: "2023-06-02",
-          expirationDate: "2023-07-14",
-          quantity: 450,
-          location: {
-            facility: "Main Blood Bank",
-            storageUnit: "Refrigerator 2",
-            shelf: "B",
-            position: "1"
-          },
-          statusHistory: [
-            {
-              status: "Quarantined",
-              date: "2023-06-02",
-              updatedBy: "System",
-              notes: "Initial status after collection"
-            },
-            {
-              status: "Available",
-              date: "2023-06-04",
-              updatedBy: "TECH-107",
-              notes: "All tests passed, cleared for use"
-            },
-            {
-              status: "Reserved",
-              date: "2023-06-10",
-              updatedBy: "STAFF-201",
-              notes: "Reserved for surgery at Central Hospital"
-            }
-          ]
-        }
-      ];
+      // Fetch data from API
+      const response = await fetch('/api/inventory/blood-units');
       
-      try {
-        // Try to fetch from API first
-        const response = await fetch('/api/inventory/blood-units');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch blood units');
-        }
-        
-        const data = await response.json();
-        setBloodUnits(data);
-        setFilteredUnits(data);
-      } catch (apiError) {
-        console.error('Error fetching blood units from API:', apiError);
-        // Use mock data if API call fails
-        setBloodUnits(mockData);
-        setFilteredUnits(mockData);
+      if (!response.ok) {
+        throw new Error('Failed to fetch blood units');
       }
+      
+      const data = await response.json();
+      // Ensure we're getting the blood units array from the response
+      const units = data.bloodUnits || data;
+      
+      setBloodUnits(units);
+      setFilteredUnits(units);
     } catch (error) {
-      console.error('Error in blood units handling:', error);
+      console.error('Error fetching blood units:', error);
       setError('An error occurred while loading blood units.');
+      setBloodUnits([]);
+      setFilteredUnits([]);
     } finally {
       setLoading(false);
     }
@@ -274,6 +204,92 @@ const EnhancedBloodUnitManagement = () => {
       return <Badge colorScheme="orange">Warning: {daysLeft} days</Badge>;
     } else {
       return <Badge colorScheme="green">Good: {daysLeft} days</Badge>;
+    }
+  };
+
+  const handleUpdateStatus = async () => {
+    if (!selectedUnit || !newStatus) return;
+
+    try {
+      // API call to update status
+      const response = await fetch(`/api/inventory/blood-units/${selectedUnit._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          statusNote: statusNote,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update status');
+      }
+
+      // Update local state
+      const updatedUnits = bloodUnits.map(unit => 
+        unit._id === selectedUnit._id ? { ...unit, status: newStatus } : unit
+      );
+      
+      setBloodUnits(updatedUnits);
+      
+      toast({
+        title: 'Status updated',
+        description: `Blood unit ${selectedUnit.unitId} status changed to ${newStatus}`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      
+      onUpdateStatusClose();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update blood unit status',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleDeleteUnit = async () => {
+    if (!selectedUnit) return;
+
+    try {
+      // API call to delete
+      const response = await fetch(`/api/inventory/blood-units/${selectedUnit._id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete unit');
+      }
+
+      // Update local state
+      const updatedUnits = bloodUnits.filter(unit => unit._id !== selectedUnit._id);
+      setBloodUnits(updatedUnits);
+      
+      toast({
+        title: 'Unit deleted',
+        description: `Blood unit ${selectedUnit.unitId} has been deleted`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      
+      onDeleteAlertClose();
+    } catch (error) {
+      console.error('Error deleting unit:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete blood unit',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
     }
   };
 
@@ -375,6 +391,7 @@ const EnhancedBloodUnitManagement = () => {
                 setSearchTerm('');
                 setStatusFilter('');
                 setBloodTypeFilter('');
+                fetchBloodUnits();
               }} colorScheme="blue" variant="outline">
                 Reset Filters
               </Button>
@@ -458,17 +475,18 @@ const EnhancedBloodUnitManagement = () => {
         </CardBody>
       </Card>
 
-      {/* Add Blood Unit Modal - placeholder */}
+      {/* Add Blood Unit Modal */}
       <AddBloodUnitModal 
         isOpen={isAddModalOpen} 
         onClose={onAddModalClose} 
         onBloodUnitAdded={(newUnit) => {
+          // Update local state with the new blood unit
           setBloodUnits(prevUnits => {
-            // Ensure prevUnits is an array before spreading
             const units = Array.isArray(prevUnits) ? prevUnits : [];
             return [...units, newUnit];
           });
-          onAddModalClose();
+          
+          // Display success toast
           toast({
             title: 'Success',
             description: 'Blood unit added successfully',
@@ -476,10 +494,217 @@ const EnhancedBloodUnitManagement = () => {
             duration: 3000,
             isClosable: true,
           });
+          
+          // Close the modal
+          onAddModalClose();
         }} 
       />
 
-      {/* Other modals can be added here as needed */}
+      {/* Blood Unit Details Modal */}
+      <Modal isOpen={isDetailModalOpen} onClose={onDetailModalClose} size="xl">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Blood Unit Details</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            {selectedUnit && (
+              <Tabs colorScheme="blue">
+                <TabList>
+                  <Tab>Basic Info</Tab>
+                  <Tab>Status History</Tab>
+                  <Tab>Storage</Tab>
+                </TabList>
+
+                <TabPanels>
+                  <TabPanel>
+                    <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                      <Box>
+                        <Text fontWeight="bold">Unit ID:</Text>
+                        <Text>{selectedUnit.unitId}</Text>
+                      </Box>
+                      <Box>
+                        <Text fontWeight="bold">Blood Type:</Text>
+                        <Text>{selectedUnit.bloodType}</Text>
+                      </Box>
+                      <Box>
+                        <Text fontWeight="bold">Status:</Text>
+                        <Badge colorScheme={statusColorMap[selectedUnit.status] || 'gray'}>
+                          {selectedUnit.status}
+                        </Badge>
+                      </Box>
+                      <Box>
+                        <Text fontWeight="bold">Quantity:</Text>
+                        <Text>{selectedUnit.quantity} ml</Text>
+                      </Box>
+                      <Box>
+                        <Text fontWeight="bold">Collection Date:</Text>
+                        <Text>{formatDate(selectedUnit.collectionDate)}</Text>
+                      </Box>
+                      <Box>
+                        <Text fontWeight="bold">Expiration Date:</Text>
+                        <Text>{formatDate(selectedUnit.expirationDate)}</Text>
+                      </Box>
+                      {selectedUnit.notes && (
+                        <Box gridColumn={{ md: "span 2" }}>
+                          <Text fontWeight="bold">Notes:</Text>
+                          <Text>{selectedUnit.notes}</Text>
+                        </Box>
+                      )}
+                    </SimpleGrid>
+                  </TabPanel>
+
+                  <TabPanel>
+                    {selectedUnit.statusHistory && selectedUnit.statusHistory.length > 0 ? (
+                      <Table variant="simple" size="sm">
+                        <Thead>
+                          <Tr>
+                            <Th>Status</Th>
+                            <Th>Date</Th>
+                            <Th>Updated By</Th>
+                            <Th>Notes</Th>
+                          </Tr>
+                        </Thead>
+                        <Tbody>
+                          {selectedUnit.statusHistory.map((history, index) => (
+                            <Tr key={index}>
+                              <Td>
+                                <Badge colorScheme={statusColorMap[history.status] || 'gray'}>
+                                  {history.status}
+                                </Badge>
+                              </Td>
+                              <Td>{formatDate(history.date)}</Td>
+                              <Td>{history.updatedBy || 'N/A'}</Td>
+                              <Td>{history.notes || 'N/A'}</Td>
+                            </Tr>
+                          ))}
+                        </Tbody>
+                      </Table>
+                    ) : (
+                      <Text>No status history available.</Text>
+                    )}
+                  </TabPanel>
+
+                  <TabPanel>
+                    {selectedUnit.location ? (
+                      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                        <Box>
+                          <Text fontWeight="bold">Facility:</Text>
+                          <Text>{selectedUnit.location.facility}</Text>
+                        </Box>
+                        <Box>
+                          <Text fontWeight="bold">Storage Unit:</Text>
+                          <Text>{selectedUnit.location.storageUnit}</Text>
+                        </Box>
+                        <Box>
+                          <Text fontWeight="bold">Shelf:</Text>
+                          <Text>{selectedUnit.location.shelf || 'N/A'}</Text>
+                        </Box>
+                        <Box>
+                          <Text fontWeight="bold">Position:</Text>
+                          <Text>{selectedUnit.location.position || 'N/A'}</Text>
+                        </Box>
+                      </SimpleGrid>
+                    ) : (
+                      <Text>No location data available.</Text>
+                    )}
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button colorScheme="blue" onClick={onDetailModalClose}>
+              Close
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Update Status Modal */}
+      <Modal isOpen={isUpdateStatusOpen} onClose={onUpdateStatusClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Update Blood Unit Status</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            {selectedUnit && (
+              <Box>
+                <Text mb={4}>
+                  Current status: <Badge colorScheme={statusColorMap[selectedUnit.status] || 'gray'}>
+                    {selectedUnit.status}
+                  </Badge>
+                </Text>
+
+                <FormControl id="newStatus" isRequired mb={4}>
+                  <FormLabel>New Status</FormLabel>
+                  <Select 
+                    value={newStatus}
+                    onChange={(e) => setNewStatus(e.target.value)}
+                    placeholder="Select new status"
+                  >
+                    <option value="Available">Available</option>
+                    <option value="Reserved">Reserved</option>
+                    <option value="Quarantined">Quarantined</option>
+                    <option value="Discarded">Discarded</option>
+                    <option value="Transfused">Transfused</option>
+                    <option value="Expired">Expired</option>
+                  </Select>
+                </FormControl>
+
+                <FormControl id="statusNote" mb={4}>
+                  <FormLabel>Notes (optional)</FormLabel>
+                  <Textarea 
+                    value={statusNote}
+                    onChange={(e) => setStatusNote(e.target.value)}
+                    placeholder="Add notes about this status change"
+                  />
+                </FormControl>
+              </Box>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button colorScheme="gray" mr={3} onClick={onUpdateStatusClose}>
+              Cancel
+            </Button>
+            <Button 
+              colorScheme="blue" 
+              onClick={handleUpdateStatus}
+              isDisabled={!newStatus}
+            >
+              Update Status
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        isOpen={isDeleteAlertOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onDeleteAlertClose}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Delete Blood Unit
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Are you sure you want to delete the blood unit "{selectedUnit?.unitId}"? 
+              This action cannot be undone.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={onDeleteAlertClose}>
+                Cancel
+              </Button>
+              <Button colorScheme="red" onClick={handleDeleteUnit} ml={3}>
+                Delete
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </Box>
   );
 };
