@@ -139,8 +139,8 @@ const RecipientSchema = new mongoose.Schema(
     bloodRequests: [{
       requestId: {
         type: String,
-        required: true,
-        unique: true
+        required: true
+        // Removed the unique constraint here
       },
       requestDate: {
         type: Date,
@@ -279,5 +279,8 @@ RecipientSchema.index({ bloodType: 1 });
 RecipientSchema.index({ status: 1 });
 RecipientSchema.index({ 'bloodRequests.status': 1 });
 RecipientSchema.index({ 'bloodRequests.urgency': 1 });
+
+// Add a compound index for bloodRequests.requestId to enforce uniqueness per document
+RecipientSchema.index({ '_id': 1, 'bloodRequests.requestId': 1 }, { unique: true, sparse: true });
 
 export default mongoose.models.Recipient || mongoose.model('Recipient', RecipientSchema);
