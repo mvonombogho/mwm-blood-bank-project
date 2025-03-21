@@ -22,7 +22,8 @@ import {
   Progress,
   Stack,
   Divider,
-  Icon
+  Icon,
+  Button
 } from '@chakra-ui/react';
 import { 
   FiAlertTriangle, 
@@ -30,7 +31,8 @@ import {
   FiCalendar, 
   FiClock, 
   FiDroplet, 
-  FiThermometer 
+  FiThermometer,
+  FiRefreshCw
 } from 'react-icons/fi';
 import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend } from 'chart.js';
 import { Pie, Doughnut } from 'react-chartjs-2';
@@ -54,66 +56,28 @@ const BloodInventoryDashboard = () => {
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const alertBgColor = useColorModeValue('red.50', 'red.900');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/inventory/dashboard');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch inventory data');
-        }
-        
-        const data = await response.json();
-        setInventoryData(data);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching inventory data:', err);
-        setError('Failed to load inventory data. Please try again later.');
-        
-        // Set some mock data for development and testing
-        setInventoryData({
-          byBloodType: {
-            'A+': 45,
-            'A-': 12,
-            'B+': 38,
-            'B-': 10,
-            'AB+': 15,
-            'AB-': 8,
-            'O+': 60,
-            'O-': 22
-          },
-          byStatus: {
-            'Available': 150,
-            'Reserved': 20,
-            'Quarantined': 30,
-            'Discarded': 5,
-            'Transfused': 40,
-            'Expired': 10
-          },
-          criticalLevels: [
-            { bloodType: 'AB-', count: 8 },
-            { bloodType: 'B-', count: 10 }
-          ],
-          expiringUnits: {
-            soon: 15,
-            veryClose: 5
-          },
-          temperatureAlerts: [
-            {
-              location: 'Main Facility - Refrigerator 1',
-              currentTemp: 8.2,
-              minTemp: 2,
-              maxTemp: 8,
-              status: 'Warning'
-            }
-          ]
-        });
-      } finally {
-        setLoading(false);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/inventory/dashboard');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch inventory data');
       }
-    };
+      
+      const data = await response.json();
+      setInventoryData(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching inventory data:', err);
+      setError('Failed to load inventory data. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
     
     // Refresh data every 5 minutes
@@ -123,10 +87,10 @@ const BloodInventoryDashboard = () => {
   }, []);
 
   const bloodTypeChartData = {
-    labels: Object.keys(inventoryData.byBloodType),
+    labels: Object.keys(inventoryData.byBloodType || {}),
     datasets: [
       {
-        data: Object.values(inventoryData.byBloodType),
+        data: Object.values(inventoryData.byBloodType || {}),
         backgroundColor: [
           '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
           '#9966FF', '#FF9F40', '#8AC926', '#1982C4'
@@ -141,10 +105,10 @@ const BloodInventoryDashboard = () => {
   };
 
   const statusChartData = {
-    labels: Object.keys(inventoryData.byStatus),
+    labels: Object.keys(inventoryData.byStatus || {}),
     datasets: [
       {
-        data: Object.values(inventoryData.byStatus),
+        data: Object.values(inventoryData.byStatus || {}),
         backgroundColor: [
           '#4CAF50', '#FFC107', '#F44336', '#9C27B0', '#2196F3', '#607D8B'
         ],
@@ -189,9 +153,33 @@ const BloodInventoryDashboard = () => {
     );
   }
 
+  const totalInventory = Object.values(inventoryData.byBloodType || {}).reduce((a, b) => a + b, 0);
+  const availableUnits = inventoryData.byStatus?.Available || 0;
+  const expiringUnitsCount = inventoryData.expiringUnits?.soon || 0;
+  const criticalExpiryCount = inventoryData.expiringUnits?.veryClose || 0;
+
   return (
     <Box>
-      <Heading as="h2" size="lg" mb={6}>Blood Inventory Dashboard</Heading>
+      <Flex justify="space-between" align="center" mb={6}>
+        <Heading as="h2" size="lg">Blood Inventory Dashboard</Heading>
+        <Button 
+          leftIcon={<FiRefreshCw />}
+          colorScheme="blue"
+          variant="outline"
+          size="sm"
+          onClick={fetchData}
+        >
+          Refresh Data
+        </Button>
+      </Flex>
+      
+      {error && (
+        <Alert status="error" mb={6} borderRadius="md">
+          <AlertIcon />
+          <AlertTitle>{error}</AlertTitle>
+          <Button ml="auto" size="sm" onClick={fetchData}>Try Again</Button>
+        </Alert>
+      )}
       
       {/* Critical Alerts */}
       {inventoryData.criticalLevels && inventoryData.criticalLevels.length > 0 && (
@@ -256,7 +244,7 @@ const BloodInventoryDashboard = () => {
             <StatGroup>
               <Stat>
                 <StatNumber fontSize="3xl">
-                  {Object.values(inventoryData.byBloodType).reduce((a, b) => a + b, 0)}
+                  {totalInventory}
                 </StatNumber>
                 <StatLabel>Blood Units</StatLabel>
               </Stat>
@@ -275,7 +263,7 @@ const BloodInventoryDashboard = () => {
             <StatGroup>
               <Stat>
                 <StatNumber fontSize="3xl">
-                  {inventoryData.byStatus?.Available || 0}
+                  {availableUnits}
                 </StatNumber>
                 <StatLabel>Ready for Use</StatLabel>
               </Stat>
@@ -294,7 +282,7 @@ const BloodInventoryDashboard = () => {
             <StatGroup>
               <Stat>
                 <StatNumber fontSize="3xl">
-                  {inventoryData.expiringUnits?.soon || 0}
+                  {expiringUnitsCount}
                 </StatNumber>
                 <StatLabel>Within 7 Days</StatLabel>
               </Stat>
@@ -313,7 +301,7 @@ const BloodInventoryDashboard = () => {
             <StatGroup>
               <Stat>
                 <StatNumber fontSize="3xl">
-                  {inventoryData.expiringUnits?.veryClose || 0}
+                  {criticalExpiryCount}
                 </StatNumber>
                 <StatLabel>Within 48 Hours</StatLabel>
               </Stat>
@@ -330,7 +318,13 @@ const BloodInventoryDashboard = () => {
           </CardHeader>
           <CardBody>
             <Box h="300px">
-              <Doughnut data={bloodTypeChartData} options={chartOptions} />
+              {Object.keys(inventoryData.byBloodType || {}).length > 0 ? (
+                <Doughnut data={bloodTypeChartData} options={chartOptions} />
+              ) : (
+                <Flex h="100%" justify="center" align="center">
+                  <Text>No blood type data available</Text>
+                </Flex>
+              )}
             </Box>
           </CardBody>
         </Card>
@@ -341,7 +335,13 @@ const BloodInventoryDashboard = () => {
           </CardHeader>
           <CardBody>
             <Box h="300px">
-              <Pie data={statusChartData} options={chartOptions} />
+              {Object.keys(inventoryData.byStatus || {}).length > 0 ? (
+                <Pie data={statusChartData} options={chartOptions} />
+              ) : (
+                <Flex h="100%" justify="center" align="center">
+                  <Text>No status data available</Text>
+                </Flex>
+              )}
             </Box>
           </CardBody>
         </Card>
@@ -353,32 +353,38 @@ const BloodInventoryDashboard = () => {
           <Heading size="md">Blood Type Inventory Levels</Heading>
         </CardHeader>
         <CardBody>
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-            {Object.entries(inventoryData.byBloodType).map(([type, count]) => {
-              // Calculate percentage (assuming max capacity)
-              const maxCapacity = 100; // This would ideally come from settings
-              const percentage = (count / maxCapacity) * 100;
-              let colorScheme = "green";
-              
-              if (percentage < 15) colorScheme = "red";
-              else if (percentage < 30) colorScheme = "orange";
-              
-              return (
-                <Box key={type}>
-                  <Flex justify="space-between" mb={2}>
-                    <Text fontWeight="bold">Type {type}</Text>
-                    <Text>{count} units</Text>
-                  </Flex>
-                  <Progress 
-                    value={percentage} 
-                    colorScheme={colorScheme}
-                    size="md"
-                    borderRadius="md"
-                  />
-                </Box>
-              );
-            })}
-          </SimpleGrid>
+          {Object.keys(inventoryData.byBloodType || {}).length > 0 ? (
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+              {Object.entries(inventoryData.byBloodType || {}).map(([type, count]) => {
+                // Calculate percentage based on total inventory or a theoretical max
+                const maxCapacity = Math.max(100, totalInventory); 
+                const percentage = Math.min(100, (count / maxCapacity) * 100);
+                let colorScheme = "green";
+                
+                if (percentage < 15) colorScheme = "red";
+                else if (percentage < 30) colorScheme = "orange";
+                
+                return (
+                  <Box key={type}>
+                    <Flex justify="space-between" mb={2}>
+                      <Text fontWeight="bold">Type {type}</Text>
+                      <Text>{count} units</Text>
+                    </Flex>
+                    <Progress 
+                      value={percentage} 
+                      colorScheme={colorScheme}
+                      size="md"
+                      borderRadius="md"
+                    />
+                  </Box>
+                );
+              })}
+            </SimpleGrid>
+          ) : (
+            <Flex justify="center" align="center" h="100px">
+              <Text>No blood type data available</Text>
+            </Flex>
+          )}
         </CardBody>
       </Card>
     </Box>
