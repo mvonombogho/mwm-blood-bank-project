@@ -463,7 +463,11 @@ const EnhancedBloodUnitManagement = () => {
         isOpen={isAddModalOpen} 
         onClose={onAddModalClose} 
         onBloodUnitAdded={(newUnit) => {
-          setBloodUnits(prevUnits => [...prevUnits, newUnit]);
+          setBloodUnits(prevUnits => {
+            // Ensure prevUnits is an array before spreading
+            const units = Array.isArray(prevUnits) ? prevUnits : [];
+            return [...units, newUnit];
+          });
           onAddModalClose();
           toast({
             title: 'Success',
