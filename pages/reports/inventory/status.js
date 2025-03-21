@@ -135,6 +135,35 @@ const InventoryStatusReport = () => {
     }, 1000);
   }, []);
   
+  // Get total units calculation with check for valid data
+  const getTotalUnits = () => {
+    if (!Array.isArray(inventoryData) || inventoryData.length === 0) return 0;
+    return inventoryData.reduce((sum, item) => sum + (item.unitsAvailable || 0), 0);
+  };
+  
+  // Get critical types count with check for valid data
+  const getCriticalTypesCount = () => {
+    if (!Array.isArray(inventoryData) || inventoryData.length === 0) return 0;
+    return inventoryData.filter(item => item && item.status === 'Critical').length;
+  };
+  
+  // Get expiring soon count with check for valid data
+  const getExpiringSoonCount = () => {
+    if (!Array.isArray(inventoryData) || inventoryData.length === 0) return 0;
+    return inventoryData.reduce((sum, item) => sum + (item.expiringIn7Days || 0), 0);
+  };
+  
+  // Calculate overall capacity percentage with check for valid data
+  const getOverallCapacityPercentage = () => {
+    if (!Array.isArray(inventoryData) || inventoryData.length === 0) return 0;
+    
+    const totalUnits = inventoryData.reduce((sum, item) => sum + (item.unitsAvailable || 0), 0);
+    const totalCapacity = inventoryData.reduce((sum, item) => sum + (item.capacity || 0), 0);
+    
+    if (totalCapacity === 0) return 0;
+    return Math.round((totalUnits / totalCapacity) * 100);
+  };
+  
   return (
     <Box p={5}>
       <Flex align="center" mb={4}>
@@ -171,7 +200,7 @@ const InventoryStatusReport = () => {
                 <Flex direction="column" align="center" textAlign="center">
                   <Text fontSize="lg" fontWeight="medium" mb={2}>Total Units Available</Text>
                   <Text fontSize="4xl" fontWeight="bold" color="blue.500">
-                    {inventoryData.reduce((sum, item) => sum + item.unitsAvailable, 0)}
+                    {getTotalUnits()}
                   </Text>
                 </Flex>
               </CardBody>
@@ -182,7 +211,7 @@ const InventoryStatusReport = () => {
                 <Flex direction="column" align="center" textAlign="center">
                   <Text fontSize="lg" fontWeight="medium" mb={2}>Critical Blood Types</Text>
                   <Text fontSize="4xl" fontWeight="bold" color="red.500">
-                    {inventoryData.filter(item => item.status === 'Critical').length}
+                    {getCriticalTypesCount()}
                   </Text>
                 </Flex>
               </CardBody>
@@ -193,7 +222,7 @@ const InventoryStatusReport = () => {
                 <Flex direction="column" align="center" textAlign="center">
                   <Text fontSize="lg" fontWeight="medium" mb={2}>Expiring in 7 Days</Text>
                   <Text fontSize="4xl" fontWeight="bold" color="orange.500">
-                    {inventoryData.reduce((sum, item) => sum + item.expiringIn7Days, 0)}
+                    {getExpiringSoonCount()}
                   </Text>
                 </Flex>
               </CardBody>
@@ -204,10 +233,7 @@ const InventoryStatusReport = () => {
                 <Flex direction="column" align="center" textAlign="center">
                   <Text fontSize="lg" fontWeight="medium" mb={2}>Overall Capacity</Text>
                   <Text fontSize="4xl" fontWeight="bold" color="green.500">
-                    {Math.round(
-                      (inventoryData.reduce((sum, item) => sum + item.unitsAvailable, 0) / 
-                      inventoryData.reduce((sum, item) => sum + item.capacity, 0)) * 100
-                    )}%
+                    {getOverallCapacityPercentage()}%
                   </Text>
                 </Flex>
               </CardBody>
@@ -282,7 +308,7 @@ const InventoryStatusReport = () => {
           
           <Flex justify="space-between" mt={8}>
             <Text fontSize="sm" color="gray.500">
-              Last updated: {inventoryData[0]?.lastUpdated || 'N/A'}
+              Last updated: {Array.isArray(inventoryData) && inventoryData.length > 0 && inventoryData[0]?.lastUpdated ? inventoryData[0].lastUpdated : 'N/A'}
             </Text>
             <Button
               colorScheme="blue"
