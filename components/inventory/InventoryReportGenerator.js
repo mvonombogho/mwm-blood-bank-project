@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box, Heading, FormControl, FormLabel, Select, Button,
   Stack, Checkbox, CheckboxGroup, HStack, Divider, Text,
   useColorModeValue, useToast, SimpleGrid, Card, CardBody,
-  CardHeader, Icon, VStack, Alert, AlertIcon, Flex
+  CardHeader, Icon, VStack, Alert, AlertIcon, Flex,
+  Spinner, IconButton
 } from '@chakra-ui/react';
-import { FaFileAlt, FaFileExcel, FaFilePdf, FaDownload, FaChartBar } from 'react-icons/fa';
+import { FaFileAlt, FaFileExcel, FaFilePdf, FaDownload, FaChartBar, FaSync } from 'react-icons/fa';
 
 const InventoryReportGenerator = () => {
   const [reportType, setReportType] = useState('inventory-summary');
@@ -14,25 +15,95 @@ const InventoryReportGenerator = () => {
   const [format, setFormat] = useState('pdf');
   const [includeOptions, setIncludeOptions] = useState(['charts', 'tables']);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [reports, setReports] = useState([]);
+  const [error, setError] = useState(null);
   
   const toast = useToast();
   const cardBg = useColorModeValue('white', 'gray.800');
   
-  const handleGenerateReport = () => {
-    setIsGenerating(true);
-    
-    // Simulate report generation delay
-    setTimeout(() => {
-      setIsGenerating(false);
+  // Fetch available reports on component mount
+  useEffect(() => {
+    fetchReports();
+  }, []);
+  
+  const fetchReports = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/inventory/reports');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch reports');
+      }
+      
+      const data = await response.json();
+      setReports(data.reports || []);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching reports:', err);
+      setError('Failed to load reports. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleGenerateReport = async () => {
+    try {
+      setIsGenerating(true);
+      
+      // Create request payload
+      const payload = {
+        reportType,
+        timeRange,
+        bloodTypes,
+        includeOptions,
+        format
+      };
+      
+      // Call the report generation API
+      const response = await fetch('/api/inventory/reports/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to generate report');
+      }
+      
+      // Parse the response
+      const data = await response.json();
       
       toast({
         title: 'Report Generated',
-        description: 'Your report has been generated successfully.',
+        description: `Your report "${data.report.title}" has been generated successfully.`,
         status: 'success',
         duration: 5000,
         isClosable: true,
       });
-    }, 2000);
+      
+      // Refresh the reports list
+      fetchReports();
+    } catch (err) {
+      console.error('Error generating report:', err);
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to generate report. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+  
+  const handleDownloadReport = (reportId) => {
+    // Redirect to the download endpoint
+    window.open(`/api/inventory/reports/download/${reportId}`, '_blank');
   };
   
   const handleBloodTypeChange = (values) => {
@@ -64,6 +135,14 @@ const InventoryReportGenerator = () => {
       default:
         return '';
     }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
   
   return (
@@ -194,50 +273,69 @@ const InventoryReportGenerator = () => {
         </Stack>
         
         <Box>
-          <Heading as="h3" size="md" mb={4}>
-            Available Reports
-          </Heading>
+          <Flex justify="space-between" align="center" mb={4}>
+            <Heading as="h3" size="md">
+              Available Reports
+            </Heading>
+            <IconButton
+              icon={<FaSync />}
+              aria-label="Refresh reports"
+              size="sm"
+              onClick={fetchReports}
+              isLoading={isLoading}
+            />
+          </Flex>
           
-          <Stack spacing={4}>
-            <ReportCard 
-              title="Monthly Inventory Summary"
-              date="2025-03-01"
-              type="pdf"
-              size="2.4 MB"
-              description="Monthly summary of blood inventory levels, donations and usage."
-            />
-            
-            <ReportCard 
-              title="Q1 2025 Inventory Analysis"
-              date="2025-02-15"
-              type="excel"
-              size="4.1 MB"
-              description="Quarterly inventory analysis with trends and recommendations."
-            />
-            
-            <ReportCard 
-              title="Blood Expiry Report - February"
-              date="2025-02-05"
-              type="pdf"
-              size="1.8 MB"
-              description="Analysis of blood units that expired in February 2025."
-            />
-            
-            <ReportCard 
-              title="Storage Conditions - Annual Report"
-              date="2025-01-05"
-              type="excel"
-              size="5.6 MB"
-              description="Annual report of storage conditions and maintenance records."
-            />
-          </Stack>
+          {error && (
+            <Alert status="error" mb={4} borderRadius="md">
+              <AlertIcon />
+              <Text>{error}</Text>
+            </Alert>
+          )}
+          
+          {isLoading ? (
+            <Flex justify="center" align="center" h="200px">
+              <Spinner size="xl" color="blue.500" />
+            </Flex>
+          ) : reports.length === 0 ? (
+            <Flex 
+              justify="center" 
+              align="center" 
+              h="200px" 
+              direction="column"
+              bg={cardBg}
+              p={6}
+              borderRadius="lg"
+              shadow="md"
+            >
+              <Text mb={2}>No reports available yet.</Text>
+              <Text fontSize="sm" color="gray.500">
+                Generate a new report to see it listed here.
+              </Text>
+            </Flex>
+          ) : (
+            <Stack spacing={4}>
+              {reports.map((report) => (
+                <ReportCard 
+                  key={report.reportId}
+                  title={report.title}
+                  date={report.createdAt}
+                  type={report.format}
+                  size={report.fileSize}
+                  description={report.description}
+                  reportId={report.reportId}
+                  onDownload={handleDownloadReport}
+                />
+              ))}
+            </Stack>
+          )}
         </Box>
       </SimpleGrid>
     </Box>
   );
 };
 
-const ReportCard = ({ title, date, type, size, description }) => {
+const ReportCard = ({ title, date, type, size, description, reportId, onDownload }) => {
   const cardBg = useColorModeValue('white', 'gray.800');
   
   return (
@@ -248,7 +346,12 @@ const ReportCard = ({ title, date, type, size, description }) => {
             <Icon as={getReportIcon(type)} color={type === 'pdf' ? 'red.500' : type === 'excel' ? 'green.500' : 'blue.500'} boxSize={5} />
             <Heading size="sm">{title}</Heading>
           </HStack>
-          <Button rightIcon={<FaDownload />} size="xs" variant="ghost">
+          <Button 
+            rightIcon={<FaDownload />} 
+            size="xs" 
+            variant="ghost"
+            onClick={() => onDownload(reportId)}
+          >
             Download
           </Button>
         </Flex>
@@ -258,9 +361,9 @@ const ReportCard = ({ title, date, type, size, description }) => {
           {description}
         </Text>
         <HStack fontSize="xs" color="gray.500">
-          <Text>Generated: {date}</Text>
+          <Text>Generated: {new Date(date).toLocaleDateString()}</Text>
           <Text>•</Text>
-          <Text>{size}</Text>
+          <Text>{typeof size === 'number' ? formatFileSize(size) : size}</Text>
           <Text>•</Text>
           <Text>{type.toUpperCase()}</Text>
         </HStack>
@@ -280,6 +383,14 @@ const getReportIcon = (type) => {
     default:
       return FaFileAlt;
   }
+};
+
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
 
 export default InventoryReportGenerator;
