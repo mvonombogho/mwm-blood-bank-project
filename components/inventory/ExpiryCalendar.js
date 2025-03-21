@@ -54,11 +54,16 @@ const getFirstDayOfMonth = (year, month) => {
 };
 
 const formatDate = (date) => {
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
+  if (!date) return 'N/A';
+  try {
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch (e) {
+    return 'Invalid Date';
+  }
 };
 
 const months = [
@@ -245,5 +250,23 @@ const ExpiryCalendar = () => {
     } finally {
       setLoading(false);
       onOpen(); // Open the modal with day details
+    }
+  };
+  
+  // Calculate expiry urgency for a date
+  const calculateUrgency = (expirationDate) => {
+    if (!expirationDate) return { urgent: 0, warning: 0, normal: 0 };
+    
+    try {
+      const expiry = new Date(expirationDate);
+      const currentDate = new Date();
+      const diffTime = expiry - currentDate;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays <= 2) return 'urgent';
+      if (diffDays <= 7) return 'warning';
+      return 'normal';
+    } catch (e) {
+      return 'normal';
     }
   };
