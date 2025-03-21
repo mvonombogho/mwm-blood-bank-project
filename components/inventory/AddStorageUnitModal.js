@@ -22,19 +22,48 @@ import {
   useToast,
   Grid,
   GridItem,
-  Textarea
+  Textarea,
+  Box,
+  Alert,
+  AlertIcon,
+  AlertDescription
 } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 
 const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
   const toast = useToast();
   
-  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm();
+  const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm({
+    defaultValues: {
+      name: '',
+      type: '',
+      building: 'Main Building',
+      floor: '1',
+      room: 'Storage Room',
+      targetTemp: 4,
+      tempRange: 1,
+      location: 'Main Facility',
+      capacity: 50,
+      manufacturer: '',
+      modelNumber: '',
+      notes: ''
+    }
+  });
+  
   const selectedType = watch('type');
+  
+  // Update target temperature when type changes
+  const handleTypeChange = (e) => {
+    const type = e.target.value;
+    const tempRange = getTemperatureRangeByType(type);
+    setValue('targetTemp', tempRange.default);
+  };
   
   const onSubmit = async (data) => {
     setIsSubmitting(true);
+    setError(null);
     
     try {
       // Create a properly formatted storage unit object
@@ -81,26 +110,28 @@ const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
         body: JSON.stringify(storageUnitData)
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add storage unit');
-      }
+      // Parse the response first to get error message if any
+      const responseData = await response.json();
       
-      const newStorageUnit = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to add storage unit');
+      }
       
       toast({
         title: 'Storage unit added',
-        description: `Storage unit ${newStorageUnit.name} has been successfully added.`,
+        description: `Storage unit ${responseData.name} has been successfully added.`,
         status: 'success',
         duration: 5000,
         isClosable: true,
       });
       
       reset(); // Reset form
-      onStorageUnitAdded(newStorageUnit); // Call success callback with the new unit
+      onStorageUnitAdded(responseData); // Call success callback with the new unit
       onClose(); // Close modal
     } catch (error) {
       console.error('Error adding storage unit:', error);
+      setError(error.message || 'Failed to add storage unit. Please try again.');
+      
       toast({
         title: 'Error',
         description: error.message || 'Failed to add storage unit. Please try again.',
@@ -115,6 +146,7 @@ const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
   
   const handleClose = () => {
     reset(); // Reset form when closing
+    setError(null);
     onClose();
   };
   
@@ -146,6 +178,13 @@ const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
         <ModalCloseButton />
         <form onSubmit={handleSubmit(onSubmit)}>
           <ModalBody>
+            {error && (
+              <Alert status="error" mb={4} borderRadius="md">
+                <AlertIcon />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
             <Stack spacing={4}>
               <Grid templateColumns="repeat(2, 1fr)" gap={4}>
                 <GridItem>
@@ -169,6 +208,7 @@ const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
                         required: 'Type is required' 
                       })}
                       placeholder="Select storage type"
+                      onChange={handleTypeChange}
                     >
                       <option value="Refrigerator">Refrigerator</option>
                       <option value="Freezer">Freezer</option>
