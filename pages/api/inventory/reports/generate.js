@@ -1,4 +1,4 @@
-import dbConnect from '../../../../lib/mongodb';
+import dbConnect from '../../../../lib/dbConnect';
 import BloodUnit from '../../../../models/BloodUnit';
 import StorageLog from '../../../../models/StorageLog';
 import Report from '../../../../models/Report';
