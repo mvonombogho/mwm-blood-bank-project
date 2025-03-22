@@ -18,7 +18,9 @@ import {
   Divider,
   Text,
   useToast,
-  Box
+  Box,
+  Alert,
+  AlertIcon
 } from '@chakra-ui/react';
 
 const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
@@ -30,17 +32,12 @@ const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
   const [bloodUnit, setBloodUnit] = useState({
     unitId: `BU-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
     bloodType: '',
-    donorId: '65fcf46ee47753bdcd13ac1d', // Adding default donor ID - replace with a real one from your DB
+    // Removed hardcoded donorId
     quantity: 450,
     collectionDate: new Date().toISOString().split('T')[0],
     expirationDate: new Date(Date.now() + 42 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     status: 'Quarantined',
-    location: {
-      facility: 'Main Blood Bank',
-      storageUnit: 'Refrigerator 1',
-      shelf: 'A',
-      position: ''
-    },
+    // Made storage location optional
     notes: ''
   });
   
@@ -49,13 +46,21 @@ const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
     
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
-      setBloodUnit({
-        ...bloodUnit,
-        [parent]: {
-          ...bloodUnit[parent],
-          [child]: value
-        }
-      });
+      if (!bloodUnit[parent]) {
+        // Initialize the parent object if it doesn't exist
+        setBloodUnit({
+          ...bloodUnit,
+          [parent]: { [child]: value }
+        });
+      } else {
+        setBloodUnit({
+          ...bloodUnit,
+          [parent]: {
+            ...bloodUnit[parent],
+            [child]: value
+          }
+        });
+      }
     } else {
       setBloodUnit({
         ...bloodUnit,
@@ -94,17 +99,10 @@ const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
       setBloodUnit({
         unitId: `BU-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
         bloodType: '',
-        donorId: '65fcf46ee47753bdcd13ac1d', // Keep the donor ID for next submission
         quantity: 450,
         collectionDate: new Date().toISOString().split('T')[0],
         expirationDate: new Date(Date.now() + 42 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         status: 'Quarantined',
-        location: {
-          facility: 'Main Blood Bank',
-          storageUnit: 'Refrigerator 1',
-          shelf: 'A',
-          position: ''
-        },
         notes: ''
       });
       
@@ -136,6 +134,11 @@ const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
                 {error}
               </Box>
             )}
+            
+            <Alert status="info" mb={4}>
+              <AlertIcon />
+              Storage location fields are now optional. Donor field has been removed.
+            </Alert>
             
             <Grid templateColumns="repeat(2, 1fr)" gap={4}>
               <GridItem colSpan={1}>
@@ -226,27 +229,27 @@ const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
               </GridItem>
               
               <GridItem colSpan={2}>
-                <Text fontWeight="medium" mb={2}>Storage Location</Text>
+                <Text fontWeight="medium" mb={2}>Storage Location (Optional)</Text>
                 <Divider mb={2} />
               </GridItem>
               
               <GridItem colSpan={1}>
-                <FormControl isRequired>
+                <FormControl>
                   <FormLabel>Facility</FormLabel>
                   <Input 
                     name="location.facility"
-                    value={bloodUnit.location.facility}
+                    value={bloodUnit.location?.facility || ''}
                     onChange={handleChange}
                   />
                 </FormControl>
               </GridItem>
               
               <GridItem colSpan={1}>
-                <FormControl isRequired>
+                <FormControl>
                   <FormLabel>Storage Unit</FormLabel>
                   <Input 
                     name="location.storageUnit"
-                    value={bloodUnit.location.storageUnit}
+                    value={bloodUnit.location?.storageUnit || ''}
                     onChange={handleChange}
                   />
                 </FormControl>
@@ -257,7 +260,7 @@ const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
                   <FormLabel>Shelf</FormLabel>
                   <Input 
                     name="location.shelf"
-                    value={bloodUnit.location.shelf}
+                    value={bloodUnit.location?.shelf || ''}
                     onChange={handleChange}
                   />
                 </FormControl>
@@ -268,7 +271,7 @@ const AddBloodUnitModal = ({ isOpen, onClose, onBloodUnitAdded }) => {
                   <FormLabel>Position</FormLabel>
                   <Input 
                     name="location.position"
-                    value={bloodUnit.location.position}
+                    value={bloodUnit.location?.position || ''}
                     onChange={handleChange}
                   />
                 </FormControl>
