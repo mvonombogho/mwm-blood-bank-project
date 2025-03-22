@@ -41,7 +41,8 @@ import {
   Alert,
   AlertIcon,
   AlertTitle,
-  AlertDescription
+  AlertDescription,
+  Link
 } from '@chakra-ui/react';
 import { 
   FiSearch, 
@@ -54,8 +55,11 @@ import {
   FiPlus,
   FiEdit,
   FiTrash2,
-  FiInfo
+  FiInfo,
+  FiSettings
 } from 'react-icons/fi';
+import { useRouter } from 'next/router';
+import { useSession } from 'next-auth/react';
 import AddStorageUnitModal from './AddStorageUnitModal';
 import StorageTemperatureChart from './StorageTemperatureChart';
 import AddTemperatureModal from './AddTemperatureModal';
@@ -80,18 +84,21 @@ const StorageManagement = () => {
   const [filteredUnits, setFilteredUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [permissionError, setPermissionError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [selectedStorage, setSelectedStorage] = useState(null);
   
+  const router = useRouter();
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const cardHoverBg = useColorModeValue('gray.50', 'gray.700');
+  const { data: session, status: sessionStatus } = useSession();
 
   useEffect(() => {
     fetchStorageUnits();
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     if (!Array.isArray(storageUnits)) {
@@ -125,14 +132,38 @@ const StorageManagement = () => {
 
   const fetchStorageUnits = async () => {
     try {
+      // Clear previous errors
       setLoading(true);
       setError(null);
+      setPermissionError(null);
+
+      // Check if user is authenticated
+      if (sessionStatus !== 'authenticated') {
+        setLoading(false);
+        if (sessionStatus === 'unauthenticated') {
+          setPermissionError('You must be logged in to view storage units');
+        }
+        return;
+      }
       
-      const response = await fetch('/api/inventory/storage');
+      const response = await fetch('/api/inventory/storage', {
+        credentials: 'include'
+      });
+      
+      if (response.status === 401) {
+        setPermissionError('Authentication required. Please sign in and try again.');
+        setLoading(false);
+        return;
+      }
+
+      if (response.status === 403) {
+        setPermissionError('Insufficient permissions: You do not have access to manage inventory.');
+        setLoading(false);
+        return;
+      }
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch storage units');
+        throw new Error('Failed to fetch storage units');
       }
       
       const data = await response.json();
@@ -145,16 +176,16 @@ const StorageManagement = () => {
         setStorageUnits(data);
         setFilteredUnits(data);
       }
-    } catch (error) {
-      console.error('Error fetching storage units:', error);
-      setError(error.message || 'Failed to load storage units. Please try again.');
+    } catch (err) {
+      console.error('Error fetching storage units:', err);
+      setError('Failed to load storage units. Please try again.');
       setStorageUnits([]);
       setFilteredUnits([]);
     } finally {
       setLoading(false);
     }
   };
-
+  
   const handleAddStorageUnit = (newUnit) => {
     setStorageUnits(prevUnits => {
       const units = Array.isArray(prevUnits) ? prevUnits : [];
@@ -221,30 +252,79 @@ const StorageManagement = () => {
     }
   };
 
+  // Show loading state when session is loading
+  if (sessionStatus === 'loading') {
+    return (
+      <Flex justify="center" align="center" h="300px">
+        <Spinner size="xl" color="blue.500" />
+      </Flex>
+    );
+  }
+
+  // Show message if not authenticated
+  if (sessionStatus === 'unauthenticated') {
+    return (
+      <Alert 
+        status="warning" 
+        variant="solid" 
+        flexDirection="column" 
+        alignItems="center" 
+        justifyContent="center" 
+        textAlign="center" 
+        height="200px"
+        borderRadius="md"
+      >
+        <AlertIcon boxSize="40px" mr={0} />
+        <AlertTitle mt={4} mb={1} fontSize="lg">
+          Authentication Required
+        </AlertTitle>
+        <AlertDescription maxWidth="md">
+          You need to be signed in to access the Storage Management feature.
+          <Button 
+            mt={4} 
+            colorScheme="blue" 
+            onClick={() => router.push('/auth/login')}
+          >
+            Sign In
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <Box>
       <Flex justify="space-between" align="center" mb={6}>
         <Heading as="h2" size="lg">Storage Management</Heading>
-        <HStack>
-          {selectedStorage && (
-            <Button 
-              leftIcon={<FiThermometer />} 
-              colorScheme="teal" 
-              onClick={handleLogTemperature}
-              mr={2}
-            >
-              Log Temperature
-            </Button>
-          )}
-          <Button 
-            leftIcon={<FiPlus />} 
-            colorScheme="blue" 
-            onClick={onAddModalOpen}
-          >
-            Add Storage Unit
-          </Button>
-        </HStack>
+        <Button 
+          leftIcon={<FiPlus />} 
+          colorScheme="blue" 
+          onClick={onAddModalOpen}
+          isDisabled={permissionError !== null}
+        >
+          Add Storage Unit
+        </Button>
       </Flex>
+
+      {permissionError && (
+        <Alert status="error" mb={6} borderRadius="md">
+          <AlertIcon />
+          <Box flex="1">
+            <AlertTitle>Permission Error</AlertTitle>
+            <AlertDescription display="block">
+              {permissionError}
+              {permissionError.includes('permission') && (
+                <Text mt={2}>
+                  Please contact your administrator to request inventory management permissions.
+                </Text>
+              )}
+            </AlertDescription>
+          </Box>
+          <Button colorScheme="red" size="sm" onClick={() => router.push('/auth/login')}>
+            Re-authenticate
+          </Button>
+        </Alert>
+      )}
 
       <Card bg={bgColor} boxShadow="md" borderRadius="lg" mb={6}>
         <CardHeader pb={2}>
@@ -290,28 +370,40 @@ const StorageManagement = () => {
             </Select>
             
             <Button 
-              leftIcon={<FiRefreshCw />} 
+              leftIcon={<FiFilter />} 
               onClick={resetFilters}
               colorScheme="gray"
             >
               Reset Filters
             </Button>
+
+            <Button 
+              leftIcon={<FiRefreshCw />} 
+              onClick={fetchStorageUnits}
+              colorScheme="blue"
+              variant="outline"
+              isLoading={loading}
+            >
+              Refresh
+            </Button>
           </Stack>
         </CardBody>
       </Card>
 
-      {error && (
-        <Alert status="error" mb={4} borderRadius="md">
+      {error && !permissionError && (
+        <Alert status="error" mb={6} borderRadius="md">
           <AlertIcon />
-          <AlertTitle>Error!</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-          <Button onClick={fetchStorageUnits} ml="auto" size="sm" colorScheme="red">
+          <Box flex="1">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Box>
+          <Button colorScheme="red" size="sm" onClick={fetchStorageUnits}>
             Try Again
           </Button>
         </Alert>
       )}
 
-      {loading ? (
+      {loading && !permissionError ? (
         <Flex justify="center" align="center" h="300px">
           <Spinner size="xl" color="blue.500" />
         </Flex>
