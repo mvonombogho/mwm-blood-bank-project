@@ -29,11 +29,13 @@ import {
   AlertDescription
 } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
+import { useSession } from 'next-auth/react';
 
 const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const toast = useToast();
+  const { data: session } = useSession();
   
   const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm({
     defaultValues: {
@@ -66,6 +68,11 @@ const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
     setError(null);
     
     try {
+      // Check if user is authenticated
+      if (!session) {
+        throw new Error("You must be logged in to add a storage unit.");
+      }
+      
       // Create a properly formatted storage unit object
       const storageUnitData = {
         storageUnitId: `SU-${Date.now().toString().slice(-6)}`, // Generate a unique ID
@@ -107,8 +114,16 @@ const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(storageUnitData)
+        body: JSON.stringify(storageUnitData),
+        credentials: 'include' // Include credentials (cookies) for authentication
       });
+      
+      // Handle unauthenticated case
+      if (response.status === 401) {
+        // Force refresh the session
+        window.location.reload();
+        throw new Error('Authentication required. Please sign in and try again.');
+      }
       
       // Parse the response first to get error message if any
       const responseData = await response.json();
@@ -182,6 +197,15 @@ const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
               <Alert status="error" mb={4} borderRadius="md">
                 <AlertIcon />
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            {!session && (
+              <Alert status="warning" mb={4}>
+                <AlertIcon />
+                <AlertDescription>
+                  You need to be signed in to add a storage unit. Please sign in and try again.
+                </AlertDescription>
               </Alert>
             )}
             
@@ -388,6 +412,7 @@ const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
               type="submit" 
               isLoading={isSubmitting}
               loadingText="Adding"
+              isDisabled={!session}
             >
               Add Storage Unit
             </Button>
