@@ -1,17 +1,18 @@
-import { connectToDatabase } from '../../../lib/mongodb';
+import dbConnect from '../../../lib/dbConnect';
 import Report from '../../../models/Report';
-import { getSession } from 'next-auth/react';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../auth/[...nextauth]';
 import PDFDocument from 'pdfkit';
 
 export default async function handler(req, res) {
-  const session = await getSession({ req });
-  
-  if (!session) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-  
   try {
-    await connectToDatabase();
+    const session = await getServerSession(req, res, authOptions);
+    
+    if (!session) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    
+    await dbConnect();
     
     const { report: reportType, id, format = 'pdf' } = req.query;
     
@@ -28,8 +29,10 @@ export default async function handler(req, res) {
         return res.status(404).json({ message: 'Report not found' });
       }
       
-      // Increment download count
-      await Report.findByIdAndUpdate(id, { $inc: { downloadCount: 1 } });
+      // Increment download count if the field exists
+      if (reportDoc.downloadCount !== undefined) {
+        await Report.findByIdAndUpdate(id, { $inc: { downloadCount: 1 } });
+      }
       
       reportData = {
         title: reportDoc.title,
@@ -83,7 +86,7 @@ export default async function handler(req, res) {
     
     // Format and send response based on requested format
     const date = new Date().toISOString().split('T')[0];
-    const fileName = `${reportData.title.toLowerCase().replace(/\s+/g, '_')}_${date}`;
+    const fileName = `${reportData.title.toLowerCase().replace(/\\s+/g, '_')}_${date}`;
     
     switch (format.toLowerCase()) {
       case 'pdf':
@@ -224,27 +227,27 @@ function convertToCSV(jsonData) {
   let csv = '';
   
   // Add report title and generation date
-  csv += `${jsonData.title || 'Report'}\\n`;
-  csv += `Generated at,${jsonData.generatedAt || new Date().toISOString()}\\n\\n`;
+  csv += `${jsonData.title || 'Report'}\n`;
+  csv += `Generated at,${jsonData.generatedAt || new Date().toISOString()}\n\n`;
   
   // Convert the main report data
   const reportEntries = Object.entries(jsonData)
     .filter(([key]) => !['title', 'generatedAt'].includes(key) && typeof jsonData[key] !== 'object');
   
   if (reportEntries.length > 0) {
-    csv += reportEntries.map(([key, value]) => `${key},${value}`).join('\\n') + '\\n\\n';
+    csv += reportEntries.map(([key, value]) => `${key},${value}`).join('\n') + '\n\n';
   }
   
   // Handle nested objects (distributions)
   Object.entries(jsonData)
     .filter(([key, value]) => typeof value === 'object' && value !== null)
     .forEach(([key, distribution]) => {
-      csv += `${key}\\n`;
-      csv += 'Category,Count\\n';
+      csv += `${key}\n`;
+      csv += 'Category,Count\n';
       Object.entries(distribution).forEach(([category, count]) => {
-        csv += `${category},${count}\\n`;
+        csv += `${category},${count}\n`;
       });
-      csv += '\\n';
+      csv += '\n';
     });
   
   return csv;
