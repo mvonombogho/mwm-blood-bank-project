@@ -11,7 +11,7 @@ const BloodUnitSchema = new mongoose.Schema(
     donorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Donor',
-      required: true
+      required: false  // Changed from true to false to make donor optional
     },
     bloodType: {
       type: String,
@@ -37,14 +37,15 @@ const BloodUnitSchema = new mongoose.Schema(
       enum: ['Available', 'Reserved', 'Quarantined', 'Discarded', 'Transfused', 'Expired'],
       default: 'Quarantined'
     },
+    // Modified location field to be optional
     location: {
       facility: {
         type: String,
-        required: true
+        required: false
       },
       storageUnit: {
         type: String,
-        required: true
+        required: false
       },
       shelf: {
         type: String
