@@ -50,14 +50,9 @@ const Layout = ({ children, title = 'Blood Bank Management System' }) => {
           subItems: [
             { name: 'Blood Units', path: '/inventory/blood-units' },
             { name: 'Storage', path: '/inventory/storage' },
-            { name: 'Expiry Tracking', path: '/inventory/expiry-tracking' },
-            { name: 'Reports', path: '/inventory/reports' },
+            { name: 'Expiry Tracking', path: '/inventory/expiry-tracking' }
           ] 
         });
-      }
-      
-      if (session.user.permissions.canGenerateReports) {
-        items.push({ name: 'Reports', icon: FaChartLine, path: '/reports' });
       }
       
       if (session.user.permissions.canManageUsers) {
