@@ -1,16 +1,19 @@
-import { connectToDatabase } from '../../../lib/mongodb';
+import dbConnect from '../../../lib/dbConnect';
 import Report from '../../../models/Report';
-import { getSession } from 'next-auth/react';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../auth/[...nextauth]';
 
 export default async function handler(req, res) {
-  const session = await getSession({ req });
-  
-  if (!session) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-
   try {
-    await connectToDatabase();
+    // Get authenticated session
+    const session = await getServerSession(req, res, authOptions);
+    
+    if (!session) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    // Connect to database
+    await dbConnect();
     
     // Get filter parameters
     const { category, limit = 10, skip = 0 } = req.query;
@@ -73,28 +76,36 @@ export default async function handler(req, res) {
         }
       ];
       
-      // Save default reports to database
-      await Report.insertMany(defaultReports);
-      
-      // Fetch the newly created reports
-      reports = await Report.find({})
-        .sort({ createdAt: -1 })
-        .limit(parseInt(limit))
-        .lean();
+      try {
+        // Save default reports to database
+        await Report.insertMany(defaultReports);
+        
+        // Fetch the newly created reports
+        reports = await Report.find(filter)
+          .sort({ createdAt: -1 })
+          .limit(parseInt(limit))
+          .lean();
+      } catch (insertError) {
+        console.error('Error creating default reports:', insertError);
+        // If we still have no reports, return empty array
+        if (reports.length === 0) {
+          return res.status(200).json({ reports: [] });
+        }
+      }
     }
     
     // Return the reports
-    res.status(200).json({
+    return res.status(200).json({
       reports: reports.map(report => ({
         ...report,
-        id: report._id,
+        id: report._id.toString(),
         lastGenerated: report.createdAt,
         endpoint: `/api/reports/download?report=${report.type}&id=${report._id}`
       }))
     });
   } catch (error) {
     console.error('Error fetching reports list:', error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       message: 'Failed to fetch reports list', 
       error: error.message 
     });
