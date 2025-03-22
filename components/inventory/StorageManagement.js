@@ -419,3 +419,187 @@ const StorageManagement = () => {
       </Alert>
     );
   }
+
+  // Main component UI
+  return (
+    <Box>
+      <Flex justify="space-between" align="center" mb={6}>
+        <Heading as="h2" size="lg">Storage Management</Heading>
+        <Button 
+          leftIcon={<FiPlus />} 
+          colorScheme="blue" 
+          onClick={onAddModalOpen}
+          isDisabled={permissionError !== null}
+        >
+          Add Storage Unit
+        </Button>
+      </Flex>
+
+      {permissionError && (
+        <Alert status="error" mb={6} borderRadius="md">
+          <AlertIcon />
+          <Box flex="1">
+            <AlertTitle>Permission Error</AlertTitle>
+            <AlertDescription display="block">
+              {permissionError}
+              {permissionError.includes('permission') && (
+                <Text mt={2}>
+                  Please contact your administrator to request inventory management permissions.
+                </Text>
+              )}
+            </AlertDescription>
+          </Box>
+          <Button colorScheme="red" size="sm" onClick={() => router.push('/auth/login')}>
+            Re-authenticate
+          </Button>
+        </Alert>
+      )}
+
+      <Card bg={bgColor} boxShadow="md" borderRadius="lg" mb={6}>
+        <CardHeader pb={2}>
+          <Heading size="md">Filters</Heading>
+        </CardHeader>
+        <CardBody>
+          <Stack spacing={4} direction={{ base: 'column', md: 'row' }}>
+            <InputGroup>
+              <InputLeftElement pointerEvents="none">
+                <FiSearch color="gray.300" />
+              </InputLeftElement>
+              <Input 
+                placeholder="Search by name, facility, or ID" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </InputGroup>
+            
+            <Select 
+              placeholder="Filter by status" 
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              maxW={{ base: '100%', md: '200px' }}
+            >
+              <option value="Operational">Operational</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="Malfunction">Malfunction</option>
+              <option value="Offline">Offline</option>
+            </Select>
+            
+            <Select 
+              placeholder="Filter by type" 
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              maxW={{ base: '100%', md: '200px' }}
+            >
+              <option value="Refrigerator">Refrigerator</option>
+              <option value="Freezer">Freezer</option>
+              <option value="Room Temperature Storage">Room Temperature Storage</option>
+              <option value="Deep Freezer">Deep Freezer</option>
+              <option value="Transport Cooler">Transport Cooler</option>
+              <option value="Other">Other</option>
+            </Select>
+            
+            <Button 
+              leftIcon={<FiFilter />} 
+              onClick={resetFilters}
+              colorScheme="gray"
+            >
+              Reset Filters
+            </Button>
+
+            <Button 
+              leftIcon={<FiRefreshCw />} 
+              onClick={() => fetchStorageUnits(currentPage)}
+              colorScheme="blue"
+              variant="outline"
+              isLoading={loading}
+            >
+              Refresh
+            </Button>
+          </Stack>
+        </CardBody>
+      </Card>
+
+      {error && !permissionError && (
+        <Alert status="error" mb={6} borderRadius="md">
+          <AlertIcon />
+          <Box flex="1">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Box>
+          <Button colorScheme="red" size="sm" onClick={() => fetchStorageUnits(currentPage)}>
+            Try Again
+          </Button>
+        </Alert>
+      )}
+      
+      {/* The rest of the UI will be added in subsequent updates */}
+      
+      {/* Add Storage Unit Modal */}
+      <AddStorageUnitModal 
+        isOpen={isAddModalOpen} 
+        onClose={onAddModalClose} 
+        onStorageUnitAdded={handleAddStorageUnit} 
+      />
+
+      {/* Add Temperature Reading Modal */}
+      {selectedStorage && (
+        <AddTemperatureModal
+          isOpen={isAddTempModalOpen}
+          onClose={onAddTempModalClose}
+          storageUnit={selectedStorage}
+          onTemperatureAdded={handleTemperatureAdded}
+        />
+      )}
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        isOpen={isDeleteDialogOpen}
+        leastDestructiveRef={cancelDeleteRef}
+        onClose={onCloseDeleteDialog}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Delete Storage Unit
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Are you sure you want to delete <strong>{storageToDelete?.name}</strong>?
+              <Text color="red.500" mt={2}>
+                This action cannot be undone. All associated temperature readings will also be deleted.
+              </Text>
+              {storageToDelete?.capacity?.used > 0 && (
+                <Alert status="warning" mt={3}>
+                  <AlertIcon />
+                  <Box>
+                    <AlertTitle>Warning</AlertTitle>
+                    <AlertDescription>
+                      This storage unit has {storageToDelete.capacity.used} blood units stored in it. 
+                      Please relocate or dispose of these units before deleting.
+                    </AlertDescription>
+                  </Box>
+                </Alert>
+              )}
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelDeleteRef} onClick={onCloseDeleteDialog}>
+                Cancel
+              </Button>
+              <Button 
+                colorScheme="red" 
+                onClick={confirmDeleteStorageUnit} 
+                ml={3}
+                isLoading={isDeleting}
+              >
+                Delete
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
+    </Box>
+  );
+};
+
+export default StorageManagement;
