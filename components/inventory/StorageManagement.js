@@ -134,3 +134,92 @@ const StorageManagement = () => {
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const cardHoverBg = useColorModeValue('gray.50', 'gray.700');
   const { data: session, status: sessionStatus } = useSession();
+
+  const fetchStorageUnits = useCallback(async (page = 1, limit = itemsPerPage) => {
+    try {
+      // Clear previous errors
+      setLoading(true);
+      setError(null);
+      setPermissionError(null);
+
+      // Check if user is authenticated
+      if (sessionStatus !== 'authenticated') {
+        setLoading(false);
+        if (sessionStatus === 'unauthenticated') {
+          setPermissionError('You must be logged in to view storage units');
+        }
+        return;
+      }
+      
+      // Build query params for pagination and filtering
+      const queryParams = new URLSearchParams({
+        page,
+        limit,
+        ...(searchTerm && { search: searchTerm }),
+        ...(statusFilter && { status: statusFilter }),
+        ...(typeFilter && { type: typeFilter })
+      });
+      
+      const response = await fetch(`/api/inventory/storage?${queryParams.toString()}`, {
+        credentials: 'include'
+      });
+      
+      if (response.status === 401) {
+        setPermissionError('Authentication required. Please sign in and try again.');
+        setLoading(false);
+        return;
+      }
+
+      if (response.status === 403) {
+        setPermissionError('Insufficient permissions: You do not have access to manage inventory.');
+        setLoading(false);
+        return;
+      }
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch storage units');
+      }
+      
+      const data = await response.json();
+      
+      // Check if the response has pagination info
+      if (data.units && Array.isArray(data.units)) {
+        setStorageUnits(data.units);
+        setFilteredUnits(data.units);
+        setTotalUnits(data.totalCount || data.units.length);
+        setTotalPages(data.totalPages || Math.ceil(data.units.length / itemsPerPage));
+        setCurrentPage(data.currentPage || page);
+      } else if (Array.isArray(data)) {
+        // Fallback for API that doesn't support pagination yet
+        setStorageUnits(data);
+        setFilteredUnits(data);
+        setTotalUnits(data.length);
+        setTotalPages(Math.ceil(data.length / itemsPerPage));
+      } else {
+        console.warn('Unexpected data format:', data);
+        setStorageUnits([]);
+        setFilteredUnits([]);
+        setTotalUnits(0);
+        setTotalPages(1);
+      }
+    } catch (err) {
+      console.error('Error fetching storage units:', err);
+      setError('Failed to load storage units. Please try again.');
+      setStorageUnits([]);
+      setFilteredUnits([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionStatus, searchTerm, statusFilter, typeFilter, itemsPerPage]);
+
+  useEffect(() => {
+    fetchStorageUnits(currentPage);
+  }, [fetchStorageUnits, currentPage]);
+
+  useEffect(() => {
+    if (searchTerm !== '' || statusFilter !== '' || typeFilter !== '') {
+      // Reset to first page when filters change
+      setCurrentPage(1);
+      fetchStorageUnits(1);
+    }
+  }, [searchTerm, statusFilter, typeFilter, fetchStorageUnits]);
