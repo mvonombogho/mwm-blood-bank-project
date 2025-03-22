@@ -2,30 +2,51 @@ import mongoose from 'mongoose';
 
 const ReportSchema = new mongoose.Schema(
   {
-    reportId: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true
-    },
     title: {
       type: String,
       required: true,
       trim: true
     },
+    description: {
+      type: String,
+      trim: true
+    },
+    category: {
+      type: String,
+      enum: ['Donations', 'Inventory', 'Donors', 'Recipients'],
+      required: true
+    },
     type: {
       type: String,
-      enum: ['inventory-summary', 'expiry-analysis', 'historical-trends', 'storage-conditions', 'critical-shortage'],
+      enum: [
+        'donation-statistics', 
+        'inventory-status', 
+        'donor-demographics', 
+        'expiry-forecast',
+        'inventory-summary', 
+        'expiry-analysis', 
+        'historical-trends', 
+        'storage-conditions', 
+        'critical-shortage'
+      ],
       required: true
+    },
+    viewPath: {
+      type: String,
+      required: true
+    },
+    iconType: {
+      type: String,
+      enum: ['barChart', 'pieChart', 'calendar', 'users', 'droplet', 'list'],
+      default: 'barChart'
     },
     format: {
       type: String,
       enum: ['pdf', 'excel', 'csv'],
-      required: true
+      default: 'pdf'
     },
     timeRange: {
-      type: String,
-      required: true
+      type: String
     },
     parameters: {
       bloodTypes: [{
@@ -54,14 +75,13 @@ const ReportSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     },
-    description: {
-      type: String,
-      trim: true
+    data: {
+      type: mongoose.Schema.Types.Mixed
     },
     status: {
       type: String,
       enum: ['pending', 'completed', 'failed'],
-      default: 'pending'
+      default: 'completed'
     },
     error: {
       type: String
