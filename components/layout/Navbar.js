@@ -297,16 +297,7 @@ const NAV_ITEMS = [
         label: 'Blood Units',
         subLabel: 'Manage blood inventory',
         href: '/inventory/blood-units',
-      },
-      {
-        label: 'Storage Management',
-        subLabel: 'Monitor storage conditions',
-        href: '/inventory/storage',
-      },
+      }
     ],
-  },
-  {
-    label: 'Reports',
-    href: '/reports',
-  },
+  }
 ];
