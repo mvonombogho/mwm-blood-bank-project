@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Modal,
   ModalOverlay,
@@ -35,7 +35,7 @@ const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const toast = useToast();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   
   const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm({
     defaultValues: {
@@ -69,7 +69,7 @@ const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
     
     try {
       // Check if user is authenticated
-      if (!session) {
+      if (sessionStatus !== 'authenticated') {
         throw new Error("You must be logged in to add a storage unit.");
       }
       
@@ -108,20 +108,26 @@ const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
         notes: data.notes || ''
       };
 
+      // Add authorization headers with session token
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+
+      if (session?.token) {
+        headers['Authorization'] = `Bearer ${session.token}`;
+      }
+
       // Make the actual API call
       const response = await fetch('/api/inventory/storage', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify(storageUnitData),
         credentials: 'include' // Include credentials (cookies) for authentication
       });
       
       // Handle unauthenticated case
       if (response.status === 401) {
-        // Force refresh the session
-        window.location.reload();
+        // Show a more helpful error message
         throw new Error('Authentication required. Please sign in and try again.');
       }
       
@@ -200,7 +206,7 @@ const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
               </Alert>
             )}
             
-            {!session && (
+            {sessionStatus !== 'authenticated' && (
               <Alert status="warning" mb={4}>
                 <AlertIcon />
                 <AlertDescription>
@@ -412,7 +418,7 @@ const AddStorageUnitModal = ({ isOpen, onClose, onStorageUnitAdded }) => {
               type="submit" 
               isLoading={isSubmitting}
               loadingText="Adding"
-              isDisabled={!session}
+              isDisabled={sessionStatus !== 'authenticated'}
             >
               Add Storage Unit
             </Button>
