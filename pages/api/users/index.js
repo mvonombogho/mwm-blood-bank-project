@@ -1,4 +1,4 @@
-import dbConnect from '../../../lib/mongodb';
+import dbConnect from '../../../lib/dbConnect';
 import User from '../../../models/User';
 import withAuth from '../../../lib/middlewares/withAuth';
 
@@ -52,41 +52,12 @@ async function handler(req, res) {
   // POST - Create a new user
   if (req.method === 'POST') {
     try {
-      const { email, name, password, role, department, contactNumber } = req.body;
-
-      // Check if email already exists
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ message: 'Email already in use' });
-      }
-
-      // Create new user
-      const user = await User.create({
-        email,
-        name,
-        password,
-        role: role || 'staff',
-        department,
-        contactNumber,
-      });
-
-      // Return user without password
-      const userResponse = user.toObject();
-      delete userResponse.password;
-
-      return res.status(201).json(userResponse);
+      // Forward the request to the register endpoint
+      // The /api/users/register endpoint has better validation and proper permission handling
+      return res.redirect(307, '/api/users/register');
     } catch (error) {
-      console.error('Error creating user:', error);
-      
-      if (error.name === 'ValidationError') {
-        const errors = Object.keys(error.errors).reduce((acc, key) => {
-          acc[key] = error.errors[key].message;
-          return acc;
-        }, {});
-        return res.status(400).json({ message: 'Validation error', errors });
-      }
-      
-      return res.status(500).json({ message: 'Error creating user' });
+      console.error('Error redirecting user creation:', error);
+      return res.status(500).json({ message: 'Error creating user. Please try the register endpoint directly.' });
     }
   }
 
