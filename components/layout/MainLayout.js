@@ -60,9 +60,7 @@ const SidebarContent = ({ onClose, ...rest }) => {
     navItems.push({ name: 'Recipients', icon: FiUsers, href: '/recipients' });
   }
   
-  if (session?.user?.permissions?.canGenerateReports) {
-    navItems.push({ name: 'Reports', icon: FiBarChart2, href: '/reports' });
-  }
+  // Removed Reports option as requested
   
   if (session?.user?.permissions?.canManageUsers) {
     navItems.push({ name: 'Users', icon: FiUser, href: '/admin/users' });
