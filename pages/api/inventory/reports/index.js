@@ -1,4 +1,4 @@
-import dbConnect from '../../../../lib/mongodb';
+import dbConnect from '../../../../lib/dbConnect';
 import Report from '../../../../models/Report';
 import withAuth from '../../../../lib/middlewares/withAuth';
 
