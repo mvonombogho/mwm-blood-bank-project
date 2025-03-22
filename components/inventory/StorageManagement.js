@@ -379,3 +379,43 @@ const StorageManagement = () => {
     setCurrentPage(1); // Reset to first page
     fetchStorageUnits(1, newItemsPerPage);
   };
+
+  // Show loading state when session is loading
+  if (sessionStatus === 'loading') {
+    return (
+      <Flex justify="center" align="center" h="300px">
+        <Spinner size="xl" color="blue.500" />
+      </Flex>
+    );
+  }
+
+  // Show message if not authenticated
+  if (sessionStatus === 'unauthenticated') {
+    return (
+      <Alert 
+        status="warning" 
+        variant="solid" 
+        flexDirection="column" 
+        alignItems="center" 
+        justifyContent="center" 
+        textAlign="center" 
+        height="200px"
+        borderRadius="md"
+      >
+        <AlertIcon boxSize="40px" mr={0} />
+        <AlertTitle mt={4} mb={1} fontSize="lg">
+          Authentication Required
+        </AlertTitle>
+        <AlertDescription maxWidth="md">
+          You need to be signed in to access the Storage Management feature.
+          <Button 
+            mt={4} 
+            colorScheme="blue" 
+            onClick={() => router.push('/auth/login')}
+          >
+            Sign In
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
