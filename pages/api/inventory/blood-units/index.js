@@ -95,11 +95,11 @@ async function handler(req, res) {
           notes
         } = req.body;
         
-        // Validate required fields
-        if (!unitId || !donorId || !bloodType || !quantity || !location) {
+        // Validate required fields (removed donorId and location from required fields)
+        if (!unitId || !bloodType || !quantity) {
           return res.status(400).json({ 
             message: 'Required fields missing', 
-            requiredFields: ['unitId', 'donorId', 'bloodType', 'quantity', 'location'] 
+            requiredFields: ['unitId', 'bloodType', 'quantity'] 
           });
         }
         
@@ -109,11 +109,7 @@ async function handler(req, res) {
           return res.status(400).json({ message: 'Blood unit with this ID already exists' });
         }
         
-        // Verify donor exists
-        const donor = await Donor.findById(donorId);
-        if (!donor) {
-          return res.status(400).json({ message: 'Donor not found' });
-        }
+        // Removed the donor verification check that was causing the "Donor not found" error
         
         // Calculate expiration date (default to 42 days from collection for whole blood)
         const collectionDateTime = collectionDate ? new Date(collectionDate) : new Date();
@@ -160,25 +156,36 @@ async function handler(req, res) {
           notes: 'Initial status'
         }];
         
-        // Create the blood unit
-        const bloodUnit = await BloodUnit.create({
+        // Create the blood unit (donorId is now optional)
+        const bloodUnitData = {
           unitId,
-          donorId,
           bloodType,
           collectionDate: collectionDateTime,
           expirationDate,
           quantity,
           status: req.body.status || 'Quarantined',
-          location,
-          processingDetails,
           statusHistory,
           notes
-        });
+        };
         
-        // Update donor's last donation date
-        await Donor.findByIdAndUpdate(donorId, {
-          lastDonation: collectionDateTime
-        });
+        // Add optional fields only if they're provided
+        if (donorId) bloodUnitData.donorId = donorId;
+        if (location) bloodUnitData.location = location;
+        if (processingDetails) bloodUnitData.processingDetails = processingDetails;
+        
+        const bloodUnit = await BloodUnit.create(bloodUnitData);
+        
+        // Update donor's last donation date only if donorId is provided
+        if (donorId) {
+          try {
+            await Donor.findByIdAndUpdate(donorId, {
+              lastDonation: collectionDateTime
+            });
+          } catch (donorUpdateError) {
+            console.warn('Could not update donor record:', donorUpdateError);
+            // Continue even if donor update fails
+          }
+        }
         
         res.status(201).json(bloodUnit);
       } catch (error) {
@@ -194,7 +201,7 @@ async function handler(req, res) {
         }
         
         if (error.name === 'CastError') {
-          return res.status(400).json({ message: 'Invalid donor ID format' });
+          return res.status(400).json({ message: 'Invalid ID format' });
         }
         
         res.status(500).json({ message: 'Error creating blood unit', error: error.message });
