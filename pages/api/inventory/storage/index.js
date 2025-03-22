@@ -3,6 +3,7 @@ import Storage from '../../../../models/Storage';
 import StorageLog from '../../../../models/StorageLog';
 import withAuth from '../../../../lib/middlewares/withAuth';
 
+// Allow both GET and POST with the same permission
 async function handler(req, res) {
   const { method } = req;
 
@@ -111,5 +112,5 @@ async function handler(req, res) {
   }
 }
 
-// Use a more permissive permission for inventory management
-export default withAuth(handler, { requiredPermission: 'canViewInventory' });
+// Make sure we use the same permission for both viewing and managing
+export default withAuth(handler, { requiredPermission: 'canManageInventory' });
