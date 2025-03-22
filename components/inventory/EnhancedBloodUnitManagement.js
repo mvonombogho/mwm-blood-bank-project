@@ -54,7 +54,9 @@ import {
   CardHeader,
   CardBody,
   Divider,
-  Textarea
+  Textarea,
+  Alert,
+  AlertIcon
 } from '@chakra-ui/react';
 import { FiEye, FiEdit, FiTrash2, FiSearch, FiFileText, FiCheck, FiX, FiAlertCircle, FiCalendar, FiFilter, FiRefreshCw } from 'react-icons/fi';
 import AddBloodUnitModal from './AddBloodUnitModal';
@@ -293,6 +295,29 @@ const EnhancedBloodUnitManagement = () => {
     }
   };
 
+  // Helper function to safely display storage location
+  const displayStorageLocation = (unit) => {
+    if (!unit.location) return 'N/A';
+    
+    // Check if both facility and storage unit exist
+    if (unit.location.facility && unit.location.storageUnit) {
+      return `${unit.location.facility} - ${unit.location.storageUnit}`;
+    }
+    
+    // If only facility exists
+    if (unit.location.facility) {
+      return unit.location.facility;
+    }
+    
+    // If only storage unit exists
+    if (unit.location.storageUnit) {
+      return unit.location.storageUnit;
+    }
+    
+    // If location object exists but no data inside
+    return 'N/A';
+  };
+
   // Main UI rendering
   return (
     <Box>
@@ -307,6 +332,12 @@ const EnhancedBloodUnitManagement = () => {
         </Button>
       </Flex>
 
+      {/* Alert about changes */}
+      <Alert status="info" mb={4} borderRadius="md">
+        <AlertIcon />
+        Storage location is now optional. Donor information has been removed from the blood unit management.
+      </Alert>
+
       {/* Filters section */}
       <Card bg={bgColor} boxShadow="md" borderRadius="lg" mb={6}>
         <CardHeader pb={2}>
@@ -319,7 +350,7 @@ const EnhancedBloodUnitManagement = () => {
                 <FiSearch color="gray.300" />
               </InputLeftElement>
               <Input 
-                placeholder="Search by ID, blood type, or location" 
+                placeholder="Search by ID or blood type" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -431,7 +462,7 @@ const EnhancedBloodUnitManagement = () => {
                       </Td>
                       <Td>{formatDate(unit.collectionDate)}</Td>
                       <Td>{renderExpiryStatus(unit.expirationDate)}</Td>
-                      <Td>{unit.location ? `${unit.location.facility} - ${unit.location.storageUnit}` : 'N/A'}</Td>
+                      <Td>{displayStorageLocation(unit)}</Td>
                       <Td>
                         <HStack spacing={2}>
                           <Tooltip label="View Details">
@@ -512,7 +543,7 @@ const EnhancedBloodUnitManagement = () => {
                 <TabList>
                   <Tab>Basic Info</Tab>
                   <Tab>Status History</Tab>
-                  <Tab>Storage</Tab>
+                  {selectedUnit.location && <Tab>Storage</Tab>}
                 </TabList>
 
                 <TabPanels>
@@ -584,16 +615,16 @@ const EnhancedBloodUnitManagement = () => {
                     )}
                   </TabPanel>
 
-                  <TabPanel>
-                    {selectedUnit.location ? (
+                  {selectedUnit.location && (
+                    <TabPanel>
                       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
                         <Box>
                           <Text fontWeight="bold">Facility:</Text>
-                          <Text>{selectedUnit.location.facility}</Text>
+                          <Text>{selectedUnit.location.facility || 'N/A'}</Text>
                         </Box>
                         <Box>
                           <Text fontWeight="bold">Storage Unit:</Text>
-                          <Text>{selectedUnit.location.storageUnit}</Text>
+                          <Text>{selectedUnit.location.storageUnit || 'N/A'}</Text>
                         </Box>
                         <Box>
                           <Text fontWeight="bold">Shelf:</Text>
@@ -604,10 +635,8 @@ const EnhancedBloodUnitManagement = () => {
                           <Text>{selectedUnit.location.position || 'N/A'}</Text>
                         </Box>
                       </SimpleGrid>
-                    ) : (
-                      <Text>No location data available.</Text>
-                    )}
-                  </TabPanel>
+                    </TabPanel>
+                  )}
                 </TabPanels>
               </Tabs>
             )}
