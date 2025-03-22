@@ -202,3 +202,155 @@ const StorageManagement = () => {
       setLoading(false);
     }
   };
+  
+  const handleAddStorageUnit = (newUnit) => {
+    setStorageUnits(prevUnits => {
+      const units = Array.isArray(prevUnits) ? prevUnits : [];
+      return [...units, newUnit];
+    });
+    
+    toast({
+      title: 'Success',
+      description: 'Storage unit added successfully',
+      status: 'success',
+      duration: 3000,
+      isClosable: true,
+    });
+  };
+
+  const handleDeleteStorageUnit = (unit) => {
+    setStorageToDelete(unit);
+    onOpenDeleteDialog();
+  };
+  
+  const confirmDeleteStorageUnit = async () => {
+    if (!storageToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      // Add authorization headers if session token is available
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (session?.token) {
+        headers['Authorization'] = `Bearer ${session.token}`;
+      }
+      
+      const response = await fetch(`/api/inventory/storage/${storageToDelete._id}`, {
+        method: 'DELETE',
+        headers,
+        credentials: 'include'
+      });
+      
+      if (response.status === 401) {
+        toast({
+          title: 'Authentication Error',
+          description: 'Please sign in again to continue.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        onCloseDeleteDialog();
+        return;
+      }
+      
+      if (response.status === 403) {
+        toast({
+          title: 'Permission Denied',
+          description: 'You do not have permission to delete storage units.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        onCloseDeleteDialog();
+        return;
+      }
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete storage unit');
+      }
+      
+      // If successful
+      toast({
+        title: 'Storage Unit Deleted',
+        description: `${storageToDelete.name} has been deleted successfully.`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      
+      // Reset selected storage if it was the deleted one
+      if (selectedStorage?._id === storageToDelete._id) {
+        setSelectedStorage(null);
+      }
+      
+      // Refresh the list
+      fetchStorageUnits();
+    } catch (err) {
+      console.error('Error deleting storage unit:', err);
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to delete storage unit. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsDeleting(false);
+      onCloseDeleteDialog();
+      setStorageToDelete(null);
+    }
+  };
+
+  const handleLogTemperature = () => {
+    if (!selectedStorage) {
+      toast({
+        title: 'No Storage Unit Selected',
+        description: 'Please select a storage unit first',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    onAddTempModalOpen();
+  };
+
+  const handleTemperatureAdded = () => {
+    toast({
+      title: 'Success',
+      description: 'Temperature reading added successfully',
+      status: 'success',
+      duration: 3000,
+      isClosable: true,
+    });
+    
+    // Refresh storage units to get updated temperature
+    fetchStorageUnits();
+  };
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('');
+    setTypeFilter('');
+  };
+
+  const handleSelectStorage = (unit) => {
+    setSelectedStorage(unit);
+  };
+
+  const getTemperatureStatusColor = (status) => {
+    switch (status) {
+      case 'Critical':
+        return 'red';
+      case 'Warning':
+        return 'orange';
+      case 'Normal':
+        return 'green';
+      default:
+        return 'gray';
+    }
+  };
