@@ -1,4 +1,4 @@
-import dbConnect from '../../../../lib/mongodb';
+import dbConnect from '../../../../lib/dbConnect';
 import Storage from '../../../../models/Storage';
 import StorageLog from '../../../../models/StorageLog';
 import withAuth from '../../../../lib/middlewares/withAuth';
