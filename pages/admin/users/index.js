@@ -202,10 +202,11 @@ const UserManagementPage = () => {
       let response;
       
       if (formMode === 'create') {
-        response = await axios.post('/api/users', userForm);
+        // Use register endpoint for creating new users
+        response = await axios.post('/api/users/register', userForm);
         toast({
           title: 'User created',
-          description: `User ${response.data.name} has been created`,
+          description: `User ${userForm.name} has been created successfully`,
           status: 'success',
           duration: 5000,
           isClosable: true,
@@ -218,7 +219,7 @@ const UserManagementPage = () => {
         response = await axios.put(`/api/users/${currentUserId}`, dataToUpdate);
         toast({
           title: 'User updated',
-          description: `User ${response.data.name} has been updated`,
+          description: `User ${userForm.name} has been updated`,
           status: 'success',
           duration: 5000,
           isClosable: true,
