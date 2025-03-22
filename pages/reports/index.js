@@ -39,7 +39,8 @@ import {
   FiUsers, 
   FiDroplet, 
   FiList,
-  FiCheck
+  FiCheck,
+  FiRefreshCw
 } from 'react-icons/fi';
 import { useRouter } from 'next/router';
 import axios from 'axios';
@@ -72,15 +73,28 @@ const ReportsPage = () => {
   const fetchReports = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`/api/reports/list?category=${categoryFilter}`);
-      setReports(response.data.reports);
       setError(null);
+      const response = await axios.get(`/api/reports/list?category=${categoryFilter}`);
+      
+      if (response.data && Array.isArray(response.data.reports)) {
+        setReports(response.data.reports);
+      } else {
+        // Handle case where response.data.reports is not an array
+        console.error('Invalid response format:', response.data);
+        setReports([]);
+        setError('Invalid response format from server.');
+      }
     } catch (err) {
       console.error('Error fetching reports:', err);
+      setReports([]);
       setError('Failed to load reports. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+  
+  const handleRefresh = () => {
+    fetchReports();
   };
   
   const handleGenerateReport = async () => {
@@ -215,6 +229,15 @@ const ReportsPage = () => {
               <option value="Donors">Donors</option>
               <option value="Recipients">Recipients</option>
             </Select>
+            <Button
+              leftIcon={<FiRefreshCw />}
+              colorScheme="blue"
+              variant="outline"
+              onClick={handleRefresh}
+              isLoading={loading}
+            >
+              Refresh
+            </Button>
           </HStack>
         </Flex>
         
@@ -243,7 +266,7 @@ const ReportsPage = () => {
                     </Tr>
                   </Thead>
                   <Tbody>
-                    {reports.length > 0 ? (
+                    {reports && reports.length > 0 ? (
                       reports.map((report) => (
                         <Tr key={report.id}>
                           <Td>
@@ -264,7 +287,9 @@ const ReportsPage = () => {
                               {report.category}
                             </Badge>
                           </Td>
-                          <Td>{new Date(report.lastGenerated).toLocaleDateString()}</Td>
+                          <Td>
+                            {report.lastGenerated ? new Date(report.lastGenerated).toLocaleDateString() : 'N/A'}
+                          </Td>
                           <Td>
                             <Button
                               size="sm"
